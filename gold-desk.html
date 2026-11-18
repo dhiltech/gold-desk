@@ -123,6 +123,18 @@
     </div>
   </section>
 
+  <!-- JEWELLER RATES -->
+  <section class="card">
+    <div class="row" style="justify-content:space-between;align-items:baseline;gap:8px">
+      <div>
+        <h2>Jeweller 24K rates · ₹ per gram</h2>
+        <div class="small muted" id="jwSub">Live from each jeweller’s own published rate, checked every 5 minutes through your Supabase function.</div>
+      </div>
+    </div>
+    <div class="scroll" style="margin-top:14px"><table id="jwTable"></table></div>
+    <div class="tiny muted" style="margin-top:8px">Rates are per gram before GST unless marked. Between jeweller updates, “moving with market” adjusts the last published rate by the MCX move since then. If a jeweller’s feed fails, enter its rate manually in the box and it will track the market the same way.</div>
+  </section>
+
   <!-- FORECAST -->
   <section class="card" style="display:flex;flex-direction:column;gap:18px">
     <div>
@@ -245,16 +257,30 @@
 const POLL_MS = 5000, FX_MS = 10*60*1000, HIST_MS = 30*60*1000, OZ = 31.1035;
 const DEFAULT_FACTOR = 131420 / (3775 / OZ * 10 * 93.92); // calibrated to MCX Dec, 18 Nov 2026 10:26 IST
 const LIVE_FEEDS = [
+  { name:"Binance · PAXG/USDT", url:"https://data-api.binance.vision/api/v3/ticker/24hr?symbol=PAXGUSDT",
+    parse:j=>({price:+j.lastPrice, prev:+j.prevClosePrice || (+j.lastPrice - +j.priceChange)}) },
   { name:"Binance · PAXG/USDT", url:"https://api.binance.com/api/v3/ticker/24hr?symbol=PAXGUSDT",
     parse:j=>({price:+j.lastPrice, prev:+j.prevClosePrice || (+j.lastPrice - +j.priceChange)}) },
   { name:"gold-api.com · XAU spot", url:"https://api.gold-api.com/price/XAU", parse:j=>({price:+j.price}) },
+  { name:"Kraken · PAXG/USD", url:"https://api.kraken.com/0/public/Ticker?pair=PAXGUSD",
+    parse:j=>{ const r=j.result[Object.keys(j.result)[0]]; return {price:+r.c[0]}; } },
   { name:"Coinbase · PAXG/USD", url:"https://api.coinbase.com/v2/prices/PAXG-USD/spot", parse:j=>({price:+j.data.amount}) },
 ];
+// Each history source returns [{t (ms, UTC day start), c (close)}] oldest → newest
+const DAY=86400000;
 const HIST_FEEDS = [
-  { name:"Binance PAXG daily", url:"https://api.binance.com/api/v3/klines?symbol=PAXGUSDT&interval=1d&limit=1000",
-    parse:a=>a.map(k=>({t:k[0], c:+k[4]})) },
-  { name:"Coinbase PAXG daily", url:"https://api.exchange.coinbase.com/products/PAXG-USD/candles?granularity=86400",
-    parse:a=>a.map(d=>({t:d[0]*1000, c:+d[4]})).sort((x,y)=>x.t-y.t) },
+  { name:"Binance PAXG daily", load:async()=>(await getJSON("https://data-api.binance.vision/api/v3/klines?symbol=PAXGUSDT&interval=1d&limit=1000",10000)).map(k=>({t:k[0], c:+k[4]})) },
+  { name:"Binance PAXG daily", load:async()=>(await getJSON("https://api.binance.com/api/v3/klines?symbol=PAXGUSDT&interval=1d&limit=1000",10000)).map(k=>({t:k[0], c:+k[4]})) },
+  { name:"Coinbase PAXG daily", load:async()=>{ // 300 candles per request: page back 4 times
+      const out=new Map(); let end=Date.now();
+      for(let i=0;i<4;i++){ const start=end-299*DAY;
+        const a=await getJSON(`https://api.exchange.coinbase.com/products/PAXG-USD/candles?granularity=86400&start=${new Date(start).toISOString()}&end=${new Date(end).toISOString()}`,10000);
+        if(!Array.isArray(a)||!a.length) break; a.forEach(d=>out.set(d[0]*1000,+d[4])); end=start-DAY; }
+      return [...out].map(([t,c])=>({t,c})).sort((x,y)=>x.t-y.t); } },
+  { name:"Kraken PAXG daily", load:async()=>{ const j=await getJSON("https://api.kraken.com/0/public/OHLC?pair=PAXGUSD&interval=1440",10000);
+      const k=Object.keys(j.result).find(x=>x!=="last"); return j.result[k].map(r=>({t:r[0]*1000, c:+r[4]})); } },
+  { name:"freegoldapi.com daily", load:async()=>{ const a=await getJSON("https://freegoldapi.com/data/latest.json",15000);
+      const cut=Date.now()-1100*DAY; return a.filter(x=>!/\((gbp|eur|inr|cny|chf)\)/i.test(String(x.source||""))).map(x=>({t:Date.parse(x.date+"T00:00:00Z"), c:+x.price})).filter(x=>x.t>=cut&&x.c>0); } },
 ];
 const FX_FEEDS = [
   { name:"open.er-api.com", url:"https://open.er-api.com/v6/latest/USD", parse:j=>+j.rates.INR },
@@ -381,6 +407,7 @@ function renderKpis(){
   $("kMcxG").textContent = inr(m/10);
   $("kFx").textContent = "₹" + S.fx.toFixed(2); $("kFxSrc").textContent = "Source: "+S.fxSrc+" · refreshes every 10 min";
   $("kFactor").textContent = "×" + S.factor.toFixed(4);
+  if(!(document.activeElement&&document.activeElement.id&&document.activeElement.id.startsWith("jw_"))) renderJewellers();
   // sparkline
   const tk=S.ticks.slice(-120); const sv=$("spark");
   if(tk.length>1){ const mn=Math.min(...tk), mx=Math.max(...tk), r=(mx-mn)||1;
@@ -463,6 +490,62 @@ function renderLevels(){
     lv.map(([k,u,v])=>`<tr><td><span class="tag ${k==="Support"||k==="Bear case"?"down":k==="Resistance"?"up":"flat"}">${k}</span></td><td class="n">${u}</td><td class="n">${inr(toMcx(v))}</td></tr>`).join("") + `</tbody>`;
 }
 
+// ---------- jeweller rates ----------
+const JW_API="https://xmuwvoizfnvkugfmjdby.supabase.co/functions/v1/jeweller-rates";
+const JW_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhtdXd2b2l6Zm52a3VnZm1qZGJ5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQ5OTU2NTYsImV4cCI6MjExMDU3MTY1Nn0.RD5viS5BBKmvBQH-VR4QkUUxJqPOAfiC5EhVNo4kBBk"; // public anon key: read-only access to this function
+const JEWELLERS=[
+  {id:"auragold", name:"AuraGold", url:"https://auragold.in/"},
+  {id:"bhima", name:"Bhima Gold", url:"https://www.bhimagold.com/"},
+];
+const MKT_PREMIUM=13326/13142; // India retail 24K vs MCX per gram, 18 Nov 2026
+const JW={server:{}, mcxAt:{}, ok:null, checked:null};
+function jwState(){ return store.get("gd_jw",{}); }
+async function pollJewellers(){
+  try{ const c=new AbortController(); const to=setTimeout(()=>c.abort(),20000);
+    const r=await fetch(JW_API,{headers:{Authorization:"Bearer "+JW_KEY, apikey:JW_KEY}, signal:c.signal, cache:"no-store"}); clearTimeout(to);
+    if(!r.ok) throw new Error(r.status); const j=await r.json();
+    for(const x of j.rates||[]){ const prev=JW.server[x.id];
+      if(x.k24 && (!prev || prev.updated_at!==x.updated_at)) JW.mcxAt[x.id]= S.live? toMcx(S.live)/10 : null; // MCX level when this rate was read
+      JW.server[x.id]=x; }
+    JW.ok=true; }catch(e){ JW.ok=false; }
+  JW.checked=Date.now(); renderJewellers();
+}
+const agoTxt=t=>{ const m=(Date.now()-t)/60000; return m<1?"just now":m<60?Math.round(m)+" min ago":m<2880?Math.round(m/60)+" h ago":Math.round(m/1440)+" d ago"; };
+function renderJewellers(){
+  const el=$("jwTable"); if(!el||!S.live) return;
+  const mcxG=toMcx(S.live)/10, st=jwState(), est=mcxG*MKT_PREMIUM;
+  const big=v=>`<span style="font-family:'Space Grotesk';font-size:20px;font-weight:600">${v}</span>`;
+  const rows=JEWELLERS.map(j=>{ const sv=JW.server[j.id], man=st[j.id];
+    let main="—", sub="", extra="", diff="—", srcTag="";
+    if(sv&&sv.k24){ const base=JW.mcxAt[j.id]; const moving= base? sv.k24*(mcxG/base) : sv.k24;
+      main=inr(sv.k24); srcTag='<span class="tag up" style="font-size:11px">● Live feed</span>';
+      sub=`published ${agoTxt(Date.parse(sv.updated_at))}${base&&Math.abs(moving-sv.k24)>=1?` · moving with market ≈ ${inr(moving)}`:""}`;
+      const bits=[]; if(sv.k24_gst) bits.push(`incl. GST ${inr(sv.k24_gst)}`); if(sv.k24_sell) bits.push(`sell-back ${inr(sv.k24_sell)}`); if(sv.k22) bits.push(`22K ${inr(sv.k22)}`); if(sv.k18) bits.push(`18K ${inr(sv.k18)}`);
+      extra=bits.join(" · ");
+      const d=sv.k24-est; diff=`<span class="sec">${d>=0?"+":"−"}${inr(Math.abs(d)).slice(1)}</span><div class="tiny muted">vs market</div>`;
+    } else if(man){ const v=man.rate*(mcxG/man.mcxG); main=inr(v); srcTag='<span class="tag flat" style="font-size:11px">Manual</span>';
+      sub=`you entered ${inr(man.rate)} ${agoTxt(man.at)} · moving with market`;
+      const d=v-est; diff=`<span class="sec">${d>=0?"+":"−"}${inr(Math.abs(d)).slice(1)}</span><div class="tiny muted">vs market</div>`;
+    } else { sub = JW.ok===false? "feed unreachable · enter rate manually" : (sv&&sv.last_error? "feed error: "+sv.last_error : "loading…"); }
+    return `<tr><td><b>${j.name}</b> ${srcTag}<div class="tiny"><a href="${j.url}" target="_blank" rel="noopener">Open site</a></div></td>
+      <td class="n">${big(main)}<div class="tiny muted">${sub}</div>${extra?`<div class="tiny sec" style="margin-top:2px">${extra}</div>`:""}</td>
+      <td class="n">${diff}</td>
+      <td><form data-jw="${j.id}" style="display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap"><label for="jw_${j.id}" style="position:absolute;left:-9999px">${j.name} 24K rate per gram</label><input id="jw_${j.id}" inputmode="decimal" placeholder="Manual ₹/g" style="width:110px"><button type="submit">Set</button></form></td></tr>`; }).join("");
+  const focused=document.activeElement&&document.activeElement.id&&document.activeElement.id.startsWith("jw_")?document.activeElement.id:null;
+  const vals={}; JEWELLERS.forEach(j=>{ const i=$("jw_"+j.id); if(i) vals[j.id]=i.value; });
+  el.innerHTML=`<thead><tr><th>Jeweller</th><th class="n">24K ₹/g</th><th class="n">Difference</th><th class="n">Manual backup</th></tr></thead><tbody>${rows}
+    <tr><td><b>Market estimate</b><div class="tiny muted">MCX ÷ 10 × retail premium</div></td><td class="n">${big(inr(est))}<div class="tiny muted">22K ≈ ${inr(est*0.916)} · updates every 5 s</div></td><td class="n muted">—</td><td></td></tr></tbody>`;
+  JEWELLERS.forEach(j=>{ const i=$("jw_"+j.id); if(i&&vals[j.id]) i.value=vals[j.id]; });
+  if(focused&&$(focused)) $(focused).focus();
+  $("jwSub").textContent = JW.ok===false ? "Couldn’t reach your Supabase rates function. Retrying every minute; manual entry works meanwhile."
+    : `Live from each jeweller’s own published rate · fetched every 5 min by your Supabase function${JW.checked?` · checked ${new Date(JW.checked).toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"})}`:""}`;
+  el.querySelectorAll("form[data-jw]").forEach(f=>f.addEventListener("submit",ev=>{ ev.preventDefault(); const id=f.dataset.jw; const v=+String($("jw_"+id).value).replace(/[^0-9.]/g,"");
+    const st=jwState();
+    if(!v){ delete st[id]; store.set("gd_jw",st); renderJewellers(); return; }
+    if(!(v>1000&&v<100000)){ $("jw_"+id).value=""; $("jw_"+id).placeholder="e.g. 13326"; return; }
+    st[id]={rate:v, mcxG:toMcx(S.live)/10, at:Date.now()}; store.set("gd_jw",st); $("jw_"+id).value=""; renderJewellers(); }));
+}
+
 // ---------- news model (GDELT) ----------
 const GDELT="https://api.gdeltproject.org/api/v2/doc/doc";
 const NQ='("gold price" OR "gold prices" OR "gold futures" OR "spot gold" OR bullion) sourcelang:english';
@@ -538,10 +621,17 @@ function renderNews(){
 
 // ---------- data loading ----------
 function banner(msg){ const b=$("statusBanner"); if(msg){ b.hidden=false; b.innerHTML=msg; } else b.hidden=true; }
+S.histLog=[];
 async function loadHistory(){
-  for(const f of HIST_FEEDS){ try{ const a=f.parse(await getJSON(f.url,8000)); if(a.length>300){ S.hist=a; S.histSrc=f.name+` (${a.length} days)`; break; } }catch(e){} }
-  if(!S.hist.length){ S.hist=FALLBACK.map(([d,c])=>({t:Date.parse(d+"T00:00:00Z"),c})); S.histSrc="built-in snapshot (30 sessions)";
-    banner("Couldn’t reach the price-history feeds, so the chart uses a built-in 30-session snapshot. The backtest needs ~1 year of data and will appear once a feed connects. Check your connection, or try another browser/network."); }
+  S.histLog=[]; let got=null;
+  for(const f of HIST_FEEDS){
+    try{ const a=(await f.load()).filter(x=>x.c>0&&isFinite(x.t));
+      if(a.length>=250){ got={a,name:f.name}; S.histLog.push(`${f.name}: ✓ ${a.length} days`); break; }
+      S.histLog.push(`${f.name}: only ${a.length} days`);
+    }catch(e){ S.histLog.push(`${f.name}: ✗ ${e&&e.name==="AbortError"?"timed out":(e&&e.message)||"blocked"}`); } }
+  if(got){ S.hist=got.a; S.histSrc=`${got.name} (${got.a.length} days)`; S.histOk=true; banner(null); }
+  else if(!S.histOk){ S.hist=FALLBACK.map(([d,c])=>({t:Date.parse(d+"T00:00:00Z"),c})); S.histSrc="built-in snapshot (30 sessions)";
+    banner(`<b>Price history didn’t load</b>, so the forecast and track record are waiting. Retrying every 2 minutes.<br><span class="tiny muted">${S.histLog.join(" · ")}</span><br><span class="tiny">Tip: if every source says “blocked”, try mobile data or another Wi-Fi, or turn off an ad-blocker / VPN for this page.</span>`); }
   const wk=S.hist.filter(x=>{const d=new Date(x.t).getUTCDay(); return d===0||d===6;}).length/S.hist.length;
   S.cpw = wk>0.1?7:5;
 }
@@ -563,7 +653,6 @@ async function pollLive(){
       S.liveIdx=i; S.liveSrc=f.name; if(r.prev) S.prev=r.prev; else if(!S.prev && S.hist.length>1) S.prev=S.hist[S.hist.length-2].c;
       applyLive(r.price); S.fails=0;
       $("liveDot").className="dot"; $("liveText").textContent="Live · updated "+new Date().toLocaleTimeString("en-GB")+" · every 5 s";
-      banner(S.histSrc.startsWith("built-in")?$("statusBanner").innerHTML:null);
       renderKpis(); recompute(false); return; }catch(e){} }
   S.fails++; $("liveDot").className="dot err";
   $("liveText").textContent = "Feed unreachable · retrying every 5 s";
@@ -588,9 +677,11 @@ $("nw").addEventListener("input",()=>{ S.newsW=+$("nw").value/100; $("nwVal").te
   setInterval(pollLive, POLL_MS);
   setInterval(pollFx, FX_MS);
   $("nw").value=Math.round(S.newsW*100); $("nwVal").textContent=Math.round(S.newsW*100)+"%";
+  pollJewellers(); setInterval(pollJewellers, 60*1000);
   loadNewsLive().then(loadNewsHistory);
   setInterval(loadNewsLive, 10*60*1000);
-  setInterval(async()=>{ const before=S.hist.length; await loadHistory(); if(S.hist.length) recompute(true); }, HIST_MS);
+  setInterval(async()=>{ await loadHistory(); recompute(true); }, HIST_MS);
+  setInterval(async()=>{ if(S.histOk) return; await loadHistory(); if(S.histOk){ recompute(true); loadNewsHistory(); } }, 2*60*1000);
 })();
 })();
 </script>
