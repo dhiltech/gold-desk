@@ -186,6 +186,23 @@
     </div>
     <div id="dlBest"></div>
     <div class="scroll"><table id="dlTable"></table></div>
+    <div id="qcStrip"></div>
+    <div style="margin-top:6px">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+        <div>
+          <div class="label">Check by hand on a comparison site</div>
+          <div class="tiny muted">Free comparison sites that check Blinkit, Zepto, Instamart, Flipkart Minutes, Amazon Now and BB Now live for your address. Set 560103 or 560100 once inside the panel, then search “gold coin”.</div>
+        </div>
+        <div class="pills" role="group" aria-label="Comparison site">
+          <button data-qcsite="https://comparify.pro/grocery-price-comparison" aria-pressed="true">Comparify</button>
+          <a class="btn" href="https://www.smartprix.com/grocery" target="_blank" rel="noopener" style="text-decoration:none;display:inline-flex;align-items:center">Smartprix ↗</a>
+          <a class="btn" href="https://9minutes.in/" target="_blank" rel="noopener" style="text-decoration:none;display:inline-flex;align-items:center">9minutes (alerts) ↗</a>
+        </div>
+      </div>
+      <iframe id="qcFrame" src="https://comparify.pro/grocery-price-comparison" title="Live quick-commerce price comparison" loading="lazy"
+        style="width:100%;height:760px;margin-top:10px;border:1px solid var(--line);border-radius:12px;background:var(--frame)"></iframe>
+      <div class="tiny muted">Shown exactly as the comparison site serves it. If it stays blank, use the ↗ links. When you spot a good price, save it in the app card above so it joins your below-market ranking.</div>
+    </div>
     <div class="tiny muted">Listings are refreshed from the deals table in your Supabase project; prices move with the live gold rate between checks because these stores price coins off the daily rate. Bank offers often exclude gold or apply only on some days, so offers tagged <b>check</b> may not apply at checkout. Always confirm the final amount before paying. For full live lists: <a href="https://golddeal.in/" target="_blank" rel="noopener">GoldDeals</a> · <a href="https://captaintorch.in/golddeals" target="_blank" rel="noopener">Captain Torch</a> · <a href="https://cardmaven.in/gold-deals/" target="_blank" rel="noopener">CardMaven</a> · <a href="https://www.desidime.com/groups/jewellery" target="_blank" rel="noopener">DesiDime gold</a>.</div>
   </section>
 
@@ -630,7 +647,10 @@ function renderJewellers(){
 const SB_REST="https://xmuwvoizfnvkugfmjdby.supabase.co/rest/v1";
 const MY_CARDS=[["SBI","credit"],["SBI","debit"],["HDFC","credit"],["HDFC","debit"],["Axis","credit"],["Axis","debit"]];
 const PRIORITY_BANKS=["SBI","HDFC","Axis"];
-const DL={deals:[], offers:[], loaded:null, ok:null, tab:store.get("gd_dealTab","999"),
+const QC_APPS=[["Blinkit","https://blinkit.com/s/?q=gold%20coin"],["Instamart","https://www.swiggy.com/instamart/search?query=gold%20coin"],["Zepto","https://www.zeptonow.com/search?query=gold%20coin"],
+  ["Flipkart Minutes","https://www.flipkart.com/search?q=gold%20coin&marketplace=HYPERLOCAL"],["Amazon Now","https://www.amazon.in/s?k=gold+coin"],["BB Now","https://www.bigbasket.com/ps/?q=gold%20coin"]];
+const PINS=[["560103","Bellandur"],["560100","Electronic City"]];
+const DL={deals:[], offers:[], loaded:null, ok:null, tab:store.get("gd_dealTab","999"), pin:store.get("gd_pin","560103"),
   cards:store.get("gd_cards", MY_CARDS.map(([b,t])=>b+"-"+t)), other:store.get("gd_otherBanks",false), check:store.get("gd_checkOffers",true)};
 async function pollDeals(){
   try{ const h={apikey:JW_KEY, Authorization:"Bearer "+JW_KEY};
@@ -670,7 +690,12 @@ function renderDeals(){
   if(!DL.deals.length){ $("dlSub").textContent="Loading deals…"; return; }
   const mkt24=toMcx(S.live)/10*MKT_PREMIUM;
   // only 999 (24K) and 916 (22K); 995 items are ignored
-  const all=DL.deals.filter(d=>+d.fineness===999||+d.fineness===916).map(d=>priceDeal(d,mkt24)).sort((a,b)=>a.perG-b.perG);
+  const qcSaved=store.get("gd_qc",{});
+  const synth=Object.entries(qcSaved).filter(([k])=>k.split("|")[1]===DL.pin).map(([k,v])=>{ const app=k.split("|")[0];
+    return {id:"qc-"+k, platform:app, brand:"Your price", product:`${v.grams} g ${v.fin===999?"24K (999)":"22K (916)"} · PIN ${DL.pin}`, weight_g:v.grams, fineness:v.fin, listed_price:v.price, fee:0,
+      url:(QC_APPS.find(a=>a[0]===app)||[])[1], market24_at_check:v.mkt24, checked_at:new Date(v.at).toISOString(), notes:"Price you entered for PIN "+DL.pin, mine:true}; });
+  const liveApps=new Set(DL.deals.filter(d=>d.auto && d.pin===DL.pin).map(d=>d.platform));
+  const all=DL.deals.concat(synth).filter(d=>(!d.pin || d.pin===DL.pin) && !(liveApps.has(d.platform) && !d.pin && !d.mine)).filter(d=>+d.fineness===999||+d.fineness===916).map(d=>priceDeal(d,mkt24)).sort((a,b)=>a.perG-b.perG);
   const want24=DL.tab==="999";
   const rows=all.filter(r=>r.is24===want24);
   ["999","916"].forEach(t=>{ const b=$("tab"+t), on=DL.tab===t, n=all.filter(r=>r.is24===(t==="999")&&r.vsMkt<0).length;
@@ -680,7 +705,7 @@ function renderDeals(){
   const offTxt=b=>{ if(!b) return '<span class="muted">No offer for your cards</span>'; const o=b.o;
     return `<b>${esc(o.card_name||o.bank+" "+o.card_type)}</b> −${inr(b.amt).slice(1)} <span class="tiny muted">(${o.kind}${o.code?` · code <b>${esc(o.code)}</b>`:""})</span>${o.gold_eligible==="check"?' <span class="tag flat" style="font-size:11px">check</span>':''}`; };
   const vsTxt=v=>`<span class="${v<0?"up":v<0.03?"flat":"down"}">${v>=0?"+":"−"}${Math.abs(v*100).toFixed(1)}%</span>`;
-  const ageTxt=t=>{ const h=(Date.now()-Date.parse(t))/3600000; return h<1?"<1 h ago":h<48?Math.round(h)+" h ago":Math.round(h/24)+" d ago"; };
+  const ageTxt=t=>{ const h=(Date.now()-Date.parse(t))/3600000; return h<1/60?"just now":h<1?Math.round(h*60)+" min ago":h<48?Math.round(h)+" h ago":Math.round(h/24)+" d ago"; };
   const below=rows.filter(r=>r.vsMkt<0);
   const bestOf=f=>below.filter(f)[0];
   const nearest=f=>rows.filter(f)[0];
@@ -703,9 +728,46 @@ function renderDeals(){
       <td class="n">${inr(r.est)}${r.d.market24_at_check?"":'<div class="tiny muted">as listed</div>'}</td>
       <td>${offTxt(r.best)}${r.d.coupon_code?`<div class="tiny">store code <b>${esc(r.d.coupon_code)}</b> −${inr(r.d.coupon_off).slice(1)}</div>`:""}</td>
       <td class="n">${+r.d.fee?inr(r.d.fee):"—"}</td><td class="n"><b>${inr(r.eff)}</b></td><td class="n">${inr(r.perG)}</td><td class="n">${vsTxt(r.vsMkt)}</td></tr>`).join("")+`</tbody>`;
+  // Quick commerce: every app, for the selected PIN; always shown (even above market)
+  const qcBox=$("qcStrip");
+  if(!(document.activeElement && qcBox.contains(document.activeElement))){
+    const fin=want24?999:916;
+    const qcCards=QC_APPS.map(([app,url])=>{
+      const r=rows.find(x=>x.d.platform===app);   // rows are sorted cheapest first
+      const mine=r&&r.d.mine, live=r&&r.d.auto;
+      const body = r ? `<div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px"><span style="font-family:'Space Grotesk';font-size:22px;font-weight:600">${inr(r.perG)}<span class="small muted"> /g</span></span><span class="small">${vsTxt(r.vsMkt)}</span></div>
+          <div class="tiny sec">${live?`<span class="tag up" style="font-size:10px">● Live feed</span> PIN ${esc(r.d.pin)} · ${esc(r.d.brand||"")} ${r.d.weight_g} g · ${ageTxt(r.d.checked_at)}`:mine?`your price · ${ageTxt(r.d.checked_at)}`:`tracked (not PIN-specific) · ${esc(r.d.brand||"")} · ${ageTxt(r.d.checked_at)}`}</div>
+          <div class="tiny" style="margin-top:4px">${r.best?offTxt(r.best):'<span class="muted">No offer for your cards</span>'} · pay ${inr(r.eff)} for ${r.d.weight_g} g</div>`
+        : `<div class="small muted">No ${want24?"24K":"22K"} price for this PIN yet</div>`;
+      return `<div class="card" style="padding:14px 16px;background:var(--s2);box-shadow:none;border-color:${r&&r.vsMkt<0?"var(--up)":"var(--line)"}">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:4px"><b>${app}</b><a class="tiny" href="${url}" target="_blank" rel="noopener">Open app ↗</a></div>
+        ${body}
+        <form data-qc="${app}" style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap;align-items:center">
+          <label class="tiny" for="qcp_${app.replace(/\W/g,"")}" style="position:absolute;left:-9999px">${app} price you see for PIN ${DL.pin}</label>
+          <input id="qcp_${app.replace(/\W/g,"")}" inputmode="decimal" placeholder="₹ you see" style="width:100px;min-height:36px;padding:6px 10px">
+          <select aria-label="Weight" style="font:inherit;font-size:13px;min-height:36px;border-radius:10px;border:1px solid var(--line);background:var(--s1);color:var(--t1);padding:0 8px">
+            <option value="0.5">0.5 g</option><option value="1" selected>1 g</option><option value="2">2 g</option><option value="4">4 g</option><option value="5">5 g</option><option value="8">8 g</option><option value="10">10 g</option></select>
+          <button type="submit" style="min-height:36px;padding:6px 12px">Save</button>
+          ${mine?`<button type="button" data-clear="${app}" style="min-height:36px;padding:6px 10px">Clear</button>`:""}
+        </form></div>`; }).join("");
+    qcBox.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin:6px 0 10px">
+        <div><div class="label">Quick commerce · ${want24?"24K (999)":"22K (916)"} · your area</div>
+        <div class="tiny muted">${(()=>{ const t=DL.deals.filter(d=>d.auto&&d.pin===DL.pin).map(d=>Date.parse(d.checked_at)).sort((a,b)=>b-a)[0]; return t?`Live feed for PIN ${DL.pin} updated ${ageTxt(new Date(t).toISOString())} · runs 9:00 am & 6:00 pm`:`Live feed for PIN ${DL.pin}: waiting for the first scheduled run (9:00 am & 6:00 pm)`; })()}</div></div>
+        <div class="pills" role="group" aria-label="Delivery PIN">${PINS.map(([p,n])=>`<button data-pin="${p}" aria-pressed="${DL.pin===p}">${p} · ${n}</button>`).join("")}</div></div>
+      <div class="grid4" style="grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px">${qcCards}</div>
+      <div class="tiny muted" style="margin-top:8px">These apps set gold prices by delivery location inside their apps, so they can’t be read automatically for a PIN. Open the app with your ${DL.pin} address, type the price you see, and pick the weight. It then follows the live gold rate, gets your best card offer, and joins the main table if it’s below market. Saved in this browser only.</div>`;
+    qcBox.querySelectorAll("[data-pin]").forEach(b=>b.onclick=()=>{ DL.pin=b.dataset.pin; store.set("gd_pin",DL.pin); renderDeals(); });
+    qcBox.querySelectorAll("form[data-qc]").forEach(f=>f.addEventListener("submit",ev=>{ ev.preventDefault(); const app=f.dataset.qc;
+      const price=+String(f.querySelector("input").value).replace(/[^0-9.]/g,""), grams=+f.querySelector("select").value;
+      if(!(price>500 && price/grams>3000 && price/grams<40000)){ f.querySelector("input").value=""; f.querySelector("input").placeholder="e.g. 15100"; return; }
+      const st=store.get("gd_qc",{}); st[`${app}|${DL.pin}|${fin}`]={price, grams, fin, at:Date.now(), mkt24:toMcx(S.live)/10*MKT_PREMIUM}; store.set("gd_qc",st);
+      document.activeElement.blur(); renderDeals(); }));
+    qcBox.querySelectorAll("[data-clear]").forEach(b=>b.onclick=()=>{ const st=store.get("gd_qc",{}); delete st[`${b.dataset.clear}|${DL.pin}|${fin}`]; store.set("gd_qc",st); renderDeals(); });
+  }
   $("dlSub").textContent=`${want24?"24K (999)":"22K (916)"}: ${below.length} of ${rows.length} tracked listings below market · market 24K ≈ ${inr(mkt24)}/g, 22K ≈ ${inr(mkt24*0.916)}/g (live) · deals table checked ${DL.loaded?new Date(DL.loaded).toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"}):"—"}`;
 }
 document.querySelectorAll("[data-gd]").forEach(b=>b.addEventListener("click",()=>{ document.querySelectorAll("[data-gd]").forEach(x=>x.setAttribute("aria-pressed","false")); b.setAttribute("aria-pressed","true"); $("gdFrame").src=b.dataset.gd; }));
+document.querySelectorAll("[data-qcsite]").forEach(b=>b.addEventListener("click",()=>{ document.querySelectorAll("[data-qcsite]").forEach(x=>x.setAttribute("aria-pressed","false")); b.setAttribute("aria-pressed","true"); $("qcFrame").src=b.dataset.qcsite; }));
 $("optOther").addEventListener("click",()=>{ DL.other=!DL.other; store.set("gd_otherBanks",DL.other); renderDeals(); });
 $("optCheck").addEventListener("click",()=>{ DL.check=!DL.check; store.set("gd_checkOffers",DL.check); renderDeals(); });
 
