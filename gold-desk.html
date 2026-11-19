@@ -1,0 +1,920 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gold Desk — Live Tracker &amp; 1-Week Forecast</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#F3F5F9; --s1:#FFFFFF; --s2:#F6F8FC; --line:#E3E8F0; --hover:#C9D2E1;
+    --t1:#0F1B35; --t2:#3A4864; --t3:#5E6B84;
+    --gold:#B8862B; --accent:#96690F; --accent-ink:#FFFFFF; --accent-soft:rgba(184,134,43,.10); --accent-mid:rgba(184,134,43,.35);
+    --navy:#14254A; --blue:#2563EB; --pink:#BE3A62;
+    --up:#0F8A5F; --down:#C2372C; --up-soft:rgba(15,138,95,.09); --down-soft:rgba(194,55,44,.08);
+    --shadow:0 1px 2px rgba(15,27,53,.05), 0 8px 24px rgba(15,27,53,.06);
+    --tip:#0F1B35; --frame:#ffffff; --nav:rgba(255,255,255,.92);
+  }
+  :root[data-theme="dark"]{
+    --bg:#0A1120; --s1:#101A2E; --s2:#16233D; --line:#23324F; --hover:#34476D;
+    --t1:#F3F5F9; --t2:#C6CEDD; --t3:#8F9BB4;
+    --gold:#D9A93E; --accent:#E8B652; --accent-ink:#0A1120; --accent-soft:rgba(232,182,82,.16); --accent-mid:rgba(232,182,82,.42);
+    --navy:#9DB7EA; --blue:#5B9BF5; --pink:#E06A8C;
+    --up:#34C38F; --down:#F2665A; --up-soft:rgba(52,195,143,.16); --down-soft:rgba(242,102,90,.14);
+    --shadow:0 8px 24px rgba(0,0,0,.25);
+    --tip:#070C17; --frame:#ffffff; --nav:rgba(16,26,46,.92);
+  }
+  .topnav{position:sticky;top:0;z-index:20;background:var(--nav);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+  .topnav .in{max-width:1360px;margin:0 auto;padding:8px 20px;display:flex;gap:4px;overflow-x:auto;scrollbar-width:none}
+  .topnav a{flex:0 0 auto;text-decoration:none;color:var(--t2);font-size:14px;font-weight:600;padding:10px 14px;border-radius:999px;min-height:40px;display:inline-flex;align-items:center}
+  .topnav a:hover{background:var(--s2);color:var(--t1)}
+  .topnav a.on{background:var(--accent-soft);color:var(--accent)}
+  section[id]{scroll-margin-top:72px}
+  .kpi{border-top:4px solid var(--gold)}
+  .kpi.mcx{border-top-color:var(--navy)} .kpi.fx{border-top-color:var(--blue)} .kpi.fc{border-top-color:var(--accent)}
+  .logo{width:46px;height:46px;border-radius:12px;background:linear-gradient(135deg,#E9C46A,#B8862B);display:flex;align-items:center;justify-content:center;font-family:"Bebas Neue",sans-serif;font-size:24px;color:#fff;letter-spacing:.04em;box-shadow:0 4px 12px rgba(184,134,43,.35)}
+  .sechead{display:flex;align-items:center;gap:10px}
+  .sechead .ic{width:8px;height:22px;border-radius:4px;background:var(--gold)}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--t1);font-size:15px;line-height:1.5;font-family:Inter,system-ui,sans-serif;font-variant-numeric:tabular-nums;-webkit-font-smoothing:antialiased}
+  a{color:var(--accent)} a:hover{color:var(--t1)}
+  .wrap{max-width:1360px;margin:0 auto;padding:24px 20px 64px;display:flex;flex-direction:column;gap:24px}
+  h1,h2,h3{font-family:"Bebas Neue","Space Grotesk",Inter,sans-serif;margin:0;font-weight:400;letter-spacing:.02em}
+  h1{font-size:44px;line-height:1;color:var(--t1)}
+  h2{font-size:26px;line-height:1.05;color:var(--t1)}
+  .muted{color:var(--t3)} .sec{color:var(--t2)}
+  .small{font-size:12px} .tiny{font-size:11px}
+  .row{display:flex;flex-wrap:wrap;gap:20px}
+  .card{background:var(--s1);border:1px solid var(--line);border-radius:16px;padding:22px;min-width:0;box-shadow:var(--shadow)}
+  .grid4{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px}
+  .label{font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--t3);font-weight:600}
+  .big{font-family:"Space Grotesk",Inter,sans-serif;font-size:36px;font-weight:600;line-height:1.1;margin-top:8px;transition:color .4s}
+  .chg{font-size:14px;font-weight:600;margin-top:6px}
+  .up{color:var(--up)} .down{color:var(--down)} .flat{color:var(--t2)}
+  .flash-up{color:var(--up)!important} .flash-down{color:var(--down)!important}
+  .live{display:inline-flex;align-items:center;gap:8px;font-size:12px;color:var(--t2);border:1px solid var(--line);border-radius:999px;padding:6px 12px;background:var(--s1)}
+  .dot{width:8px;height:8px;border-radius:50%;background:var(--up);box-shadow:0 0 0 0 rgba(63,185,122,.6);animation:pulse 2s infinite}
+  .dot.err{background:var(--down);animation:none}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(63,185,122,.55)}70%{box-shadow:0 0 0 8px rgba(63,185,122,0)}100%{box-shadow:0 0 0 0 rgba(63,185,122,0)}}
+  button,.btn{font:inherit;font-size:13px;font-weight:600;color:var(--t1);background:var(--s2);border:1px solid var(--line);border-radius:10px;padding:9px 14px;min-height:40px;cursor:pointer}
+  button:hover{border-color:var(--hover)}
+  button[aria-pressed="true"]{background:var(--accent-soft);color:var(--t1);border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+  button[aria-pressed="true"]::before{content:"✓ ";color:var(--accent)}
+  .pills{display:flex;gap:6px;flex-wrap:wrap}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--t3);font-weight:600;text-align:left;padding:8px 10px;border-bottom:1px solid var(--line)}
+  td{padding:10px;border-bottom:1px solid var(--line);vertical-align:top}
+  td.n,th.n{text-align:right}
+  .tag{display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:600;border-radius:6px;padding:2px 8px;border:1px solid currentColor;white-space:nowrap}
+  .scroll{overflow-x:auto}
+  .strip{display:flex;gap:4px;flex-wrap:wrap}
+  .cell{width:26px;height:26px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700}
+  .cell.hit{background:var(--up-soft);color:var(--up);border:1px solid var(--up)}
+  .cell.miss{background:var(--down-soft);color:var(--down);border:1px solid var(--down)}
+  .meter{height:10px;border-radius:5px;background:var(--s2);position:relative;overflow:hidden;margin-top:8px}
+  .meter>i{position:absolute;top:0;bottom:0}
+  .kv{display:grid;grid-template-columns:auto 1fr;gap:6px 16px;font-size:13px}
+  .kv dt{color:var(--t3)} .kv dd{margin:0;text-align:right;font-weight:600}
+  input{font:inherit;color:var(--t1);background:var(--s2);border:1px solid var(--line);border-radius:10px;padding:9px 12px;min-height:40px;width:160px}
+  label{font-size:12px;color:var(--t2)}
+  .banner{border:1px solid var(--line);border-radius:12px;padding:12px 16px;font-size:13px;color:var(--t2);background:var(--s1)}
+  .news li{padding:12px 0;border-bottom:1px solid var(--line);list-style:none}
+  .news ul{margin:0;padding:0}
+  .flex-main{flex:999 1 620px;min-width:0}
+  .flex-side{flex:1 1 380px;min-width:0}
+  details summary{cursor:pointer;color:var(--t2);font-size:13px}
+  @media (max-width:600px){.big{font-size:30px}h1{font-size:22px}}
+</style>
+</head>
+<body>
+<nav class="topnav" aria-label="Sections"><div class="in">
+  <a href="#prices">Live prices</a><a href="#jewellers">Jewellers</a><a href="#deals">Best deals</a><a href="#golddeals">GoldDeals</a>
+  <a href="#forecast">Forecast</a><a href="#news">News</a><a href="#record">Track record</a><a href="#method">How it works</a>
+</div></nav>
+<div class="wrap">
+
+  <header class="row" style="align-items:center;justify-content:space-between;gap:14px">
+    <div style="display:flex;align-items:center;gap:14px">
+      <div class="logo" aria-hidden="true">Au</div>
+      <div>
+        <h1>Gold Desk</h1>
+        <div class="small muted" style="margin-top:4px">Live gold prices · jeweller rates · best online deals · 1-week forecast</div>
+      </div>
+    </div>
+    <div class="row" style="gap:8px;align-items:center">
+      <span class="live" id="liveBadge"><span class="dot" id="liveDot"></span><span id="liveText">Connecting…</span></span>
+      <button id="themeBtn" aria-label="Switch light or dark mode">Dark mode</button>
+      <button id="pauseBtn" aria-pressed="false">Pause</button>
+    </div>
+  </header>
+
+  <div class="banner" id="statusBanner" hidden></div>
+
+  <!-- KPI ROW -->
+  <section class="grid4" id="prices" aria-label="Live prices">
+    <div class="card kpi">
+      <div class="label">US gold · USD per troy oz</div>
+      <div class="big" id="kSpot">—</div>
+      <div class="chg" id="kSpotChg">&nbsp;</div>
+      <div class="tiny muted" style="margin-top:8px" id="kSpotSrc">Source: —</div>
+      <svg id="spark" viewBox="0 0 200 36" preserveAspectRatio="none" style="width:100%;height:36px;margin-top:10px" aria-hidden="true"></svg>
+      <div class="tiny muted" id="sparkLbl">Ticks since you opened this page</div>
+    </div>
+    <div class="card kpi mcx">
+      <div class="label">MCX gold · ₹ per 10 g (indicative)</div>
+      <div class="big" id="kMcx">—</div>
+      <div class="chg" id="kMcxChg">&nbsp;</div>
+      <div class="tiny muted" style="margin-top:8px" id="kMcxNote">Derived: spot × USD/INR × duty factor</div>
+      <div class="small sec" style="margin-top:8px">Per gram: <b id="kMcxG">—</b></div>
+      <details style="margin-top:10px">
+        <summary>Calibrate to the real MCX quote</summary>
+        <form id="calForm" style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;margin-top:10px">
+          <div style="display:flex;flex-direction:column;gap:4px">
+            <label for="calInput">Actual MCX price now (₹/10 g)</label>
+            <input id="calInput" inputmode="numeric" placeholder="e.g. 131420">
+          </div>
+          <button type="submit">Calibrate</button>
+        </form>
+        <div class="tiny muted" id="calMsg" style="margin-top:6px"></div>
+      </details>
+    </div>
+    <div class="card kpi fx">
+      <div class="label">USD / INR</div>
+      <div class="big" id="kFx">—</div>
+      <div class="tiny muted" style="margin-top:8px" id="kFxSrc">Source: —</div>
+      <div class="small sec" style="margin-top:14px">MCX duty &amp; premium factor: <b id="kFactor">—</b></div>
+      <div class="tiny muted" style="margin-top:4px">Covers import duty, local premium and contract basis. Recalibrate any time.</div>
+    </div>
+    <div class="card kpi fc" style="background:linear-gradient(var(--accent-soft),var(--accent-soft)),var(--s1)">
+      <div class="label" style="color:var(--accent)">1-week forecast</div>
+      <div class="big" id="kFcDir">—</div>
+      <div class="chg sec" id="kFcRange">&nbsp;</div>
+      <div class="tiny muted" style="margin-top:8px" id="kFcConf">Building track record…</div>
+    </div>
+  </section>
+
+  <!-- JEWELLER RATES -->
+  <section class="card" id="jewellers">
+    <div class="row" style="justify-content:space-between;align-items:baseline;gap:8px">
+      <div>
+        <h2 class="sechead"><span class="ic" aria-hidden="true"></span>Jeweller 24K rates · ₹ per gram</h2>
+        <div class="small muted" id="jwSub">Live from each jeweller’s own published rate, checked every 5 minutes through your Supabase function.</div>
+      </div>
+    </div>
+    <div class="scroll" style="margin-top:14px"><table id="jwTable"></table></div>
+    <div class="tiny muted" style="margin-top:8px">Rates are per gram before GST unless marked. Between jeweller updates, “moving with market” adjusts the last published rate by the MCX move since then. If a jeweller’s feed fails, enter its rate manually in the box and it will track the market the same way.</div>
+  </section>
+
+  <!-- CHEAPEST ONLINE -->
+  <section class="card" id="deals" style="display:flex;flex-direction:column;gap:14px">
+    <div>
+      <h2 class="sechead"><span class="ic" aria-hidden="true"></span>Gold online below market rate · 24K &amp; 22K</h2>
+      <div class="small muted" id="dlSub">Effective price after your bank-card offer, coupon and fees, moved with the live gold rate.</div>
+    </div>
+    <div>
+      <div class="label" style="margin-bottom:6px">Your cards</div>
+      <div class="pills" id="cardPills" role="group" aria-label="Your cards"></div>
+      <div class="pills" style="margin-top:6px" role="group" aria-label="Offer options">
+        <button id="optOther" aria-pressed="false">Include other banks (HSBC, Yes, RBL…)</button>
+        <button id="optCheck" aria-pressed="true">Include offers that may exclude gold</button>
+      </div>
+    </div>
+    <div role="tablist" aria-label="Purity" style="display:flex;gap:0;border-bottom:1px solid var(--line)">
+      <button role="tab" id="tab999" data-tab="999" style="border:none;border-bottom:3px solid transparent;border-radius:0;background:none;font-size:15px;padding:12px 18px">24K · 999</button>
+      <button role="tab" id="tab916" data-tab="916" style="border:none;border-bottom:3px solid transparent;border-radius:0;background:none;font-size:15px;padding:12px 18px">22K · 916</button>
+    </div>
+    <div id="dlBest"></div>
+    <div class="scroll"><table id="dlTable"></table></div>
+    <div class="tiny muted">Listings are refreshed from the deals table in your Supabase project; prices move with the live gold rate between checks because these stores price coins off the daily rate. Bank offers often exclude gold or apply only on some days, so offers tagged <b>check</b> may not apply at checkout. Always confirm the final amount before paying. For full live lists: <a href="https://golddeal.in/" target="_blank" rel="noopener">GoldDeals</a> · <a href="https://captaintorch.in/golddeals" target="_blank" rel="noopener">Captain Torch</a> · <a href="https://cardmaven.in/gold-deals/" target="_blank" rel="noopener">CardMaven</a> · <a href="https://www.desidime.com/groups/jewellery" target="_blank" rel="noopener">DesiDime gold</a>.</div>
+  </section>
+
+  <!-- GOLDDEALS LIVE (embedded, unchanged) -->
+  <section class="card" id="golddeals" style="display:flex;flex-direction:column;gap:12px">
+    <div class="row" style="justify-content:space-between;align-items:baseline;gap:8px">
+      <div>
+        <h2 class="sechead"><span class="ic" aria-hidden="true"></span>GoldDeals live · below reference rate</h2>
+        <div class="small muted">GoldDeals’ own live list, shown exactly as golddeal.in serves it. Use its “Card offers” filter to pick your SBI, HDFC or Axis cards; buy links are GoldDeals’ own.</div>
+      </div>
+      <div class="pills" role="group" aria-label="GoldDeals view">
+        <button data-gd="https://golddeal.in/?belowRef=1" aria-pressed="true">Below market</button>
+        <button data-gd="https://golddeal.in/" aria-pressed="false">All deals</button>
+        <a class="btn" href="https://golddeal.in/?belowRef=1" target="_blank" rel="noopener" style="text-decoration:none;display:inline-flex;align-items:center">Open full site ↗</a>
+      </div>
+    </div>
+    <iframe id="gdFrame" src="https://golddeal.in/?belowRef=1" title="GoldDeals live gold deals" loading="lazy"
+      style="width:100%;height:900px;border:1px solid var(--line);border-radius:12px;background:var(--frame)"></iframe>
+    <div class="tiny muted">If the panel stays blank, your browser or GoldDeals may be blocking embedding; use “Open full site”.</div>
+  </section>
+
+  <!-- FORECAST -->
+  <section class="card" id="forecast" style="display:flex;flex-direction:column;gap:18px">
+    <div>
+      <h2 class="sechead"><span class="ic" aria-hidden="true"></span>Next 7 days: combined forecast</h2>
+      <div class="small muted">Forecast from <span id="fcFrom">—</span> to <span id="fcTo">—</span> · price models + live news sentiment</div>
+    </div>
+    <div class="row" style="gap:28px">
+      <div style="flex:1 1 360px;min-width:0;display:flex;flex-direction:column;gap:18px">
+        <div>
+          <div class="label">Combined call</div>
+          <div style="display:flex;align-items:baseline;gap:12px;margin-top:6px;flex-wrap:wrap">
+            <span class="big" style="margin:0" id="fcDir">—</span>
+            <span class="sec" id="fcScore"></span>
+          </div>
+          <div class="meter" aria-hidden="true"><i id="fcMeter"></i><i style="left:50%;width:1px;background:var(--t3)"></i></div>
+          <div class="tiny muted" style="display:flex;justify-content:space-between;margin-top:4px"><span>Strong down</span><span>Neutral</span><span>Strong up</span></div>
+        </div>
+        <div>
+          <label for="nw">News weight in the combined call: <b id="nwVal">25%</b></label>
+          <input type="range" id="nw" min="0" max="50" step="5" value="25" style="width:100%;padding:0;min-height:28px;accent-color:var(--accent)">
+          <div class="tiny muted">Price models get the rest. News has only ~12 weeks of track record (GDELT keeps 3 months), so keep this modest.</div>
+        </div>
+        <div>
+          <div class="label" style="margin-bottom:10px">Where gold could be in 7 days</div>
+          <div id="rangeBar" style="position:relative;height:56px"></div>
+        </div>
+        <dl class="kv" id="fcKv"></dl>
+      </div>
+      <div style="flex:1.4 1 420px;min-width:0">
+        <div class="label" style="margin-bottom:8px">What each predictor says now</div>
+        <div class="scroll"><table id="sigTable"></table></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- TRACK RECORD -->
+  <section class="row" id="record">
+    <div class="card flex-main">
+      <h2 class="sechead"><span class="ic" aria-hidden="true"></span>Track record: how each predictor scored</h2>
+      <div class="small muted" id="btSub" style="margin-top:4px">Walk-forward backtest: each week, only data available at that time is used, then the call is graded 7 days later.</div>
+      <div class="scroll" style="margin-top:14px"><table id="btTable"></table></div>
+      <div style="margin-top:18px">
+        <div class="label" style="margin-bottom:8px">Ensemble: last 20 weekly calls (oldest → newest)</div>
+        <div class="strip" id="strip"></div>
+        <div class="tiny muted" style="margin-top:6px">✓ = direction right, ✗ = wrong. Hover a square for the date and move.</div>
+      </div>
+    </div>
+    <div class="card flex-side" style="display:flex;flex-direction:column;gap:14px">
+      <h2 class="sechead"><span class="ic" aria-hidden="true"></span>Range accuracy (GARCH)</h2>
+      <div class="small sec">GARCH(1,1) is the standard volatility model; ranges are where forecasting has a real track record. A well-calibrated 68% band should contain about 68% of weekly outcomes.</div>
+      <dl class="kv" id="garchKv"></dl>
+      <h2 style="margin-top:6px">Published predictors for reference</h2>
+      <div class="small" style="display:flex;flex-direction:column;gap:10px">
+        <div><b>Kitco Weekly Gold Survey</b> <span class="muted">· analysts &amp; retail, 1-week call</span><br>
+          <span class="sec">In 2019 Wall Street analysts were right 54% of weeks; Main Street retail voters 51%. Latest (13 Nov 2026): Wall Street turned sharply bearish.</span></div>
+        <div><b>Goldman Sachs</b> <span class="muted">· bank target, not weekly</span><br>
+          <span class="sec">End-2026 cut to $4,150 (from $4,650) on 13 Nov; still sees $5,600 by end-2028.</span></div>
+        <div><b>Academic evidence</b><br>
+          <span class="sec">Trend/momentum timing beats buy-and-hold in gold over long samples; ARIMA vs LSTM results are mixed across studies.</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- NEWS + LEVELS -->
+  <section class="row" id="news">
+    <div class="card flex-main news">
+      <div class="row" style="justify-content:space-between;align-items:baseline;gap:8px">
+        <h2 class="sechead"><span class="ic" aria-hidden="true"></span>Live gold news &amp; sentiment</h2>
+        <span class="tiny muted" id="newsHdr">Loading headlines from GDELT…</span>
+      </div>
+      <div class="row" style="gap:12px;margin-top:12px" id="newsStats"></div>
+      <ul style="margin-top:8px" id="newsList"><li class="small muted">Fetching the last 7 days of gold headlines…</li></ul>
+      <details style="margin-top:14px"><summary>Analyst context compiled 18 Nov 2026</summary>
+      <ul style="margin-top:8px">
+        <li><span class="tag down">▼ Bearish</span> <span class="tiny muted">18 Nov · Invezz</span><br><span>Spot gold slid about 2.3% to roughly $3,770, a 14-month low; New York Fed’s John Williams said another rate hike will likely be needed.</span> <a href="https://invezz.com/news/2026/11/18/gold-slips-back-below-one-year-low-but-goldman-sachs-sees-long-term-recovery/" target="_blank" rel="noopener">Read</a></li>
+        <li><span class="tag down">▼ Bearish</span> <span class="tiny muted">18 Nov · investingLive</span><br><span>Gold is trading like a rates instrument: US yields near 5.1%, the dollar near a 19-month high, and markets pricing a near-certain December Fed hike. FOMC minutes are next.</span> <a href="https://investinglive.com/commodities/gold-s-worst-enemy-right-now-is-a-5-treasury-yield-not-the-headlines-from-the-middle-east/" target="_blank" rel="noopener">Read</a></li>
+        <li><span class="tag down">▼ Bearish</span> <span class="tiny muted">18 Nov · Univest</span><br><span>MCX December gold fell about 2% to ₹1,31,420 per 10 g by mid-morning; supports flagged near $3,750–3,770 and $3,680–3,700.</span> <a href="https://univest.in/blogs/gold-price-today-spot-gold-below-3800-dollar-mcx-gold-falls-rs-131420-fomc-minutes-fed-hike-levels-18-november-2026" target="_blank" rel="noopener">Read</a></li>
+        <li><span class="tag flat">● Mixed</span> <span class="tiny muted">17 Nov · Reuters via TIN</span><br><span>A brief 0.5% bounce to $3,874 faded; CME FedWatch put the chance of a quarter-point December hike near 96%.</span> <a href="https://www.tradingandinvestmentnews.co.uk/gold-price-fed-rate-hike-minutes/" target="_blank" rel="noopener">Read</a></li>
+        <li><span class="tag down">▼ Bearish</span> <span class="tiny muted">13 Nov · Kitco</span><br><span>Weekly survey: Wall Street sentiment turned sharply bearish; one analyst sees a possible test of the 200-week average near $3,200, another expects a washout then recovery.</span> <a href="https://www.kitco.com/news/article/2026-11-13/wall-street-bears-abound-after-inflation-sours-fed-outlook-main-street" target="_blank" rel="noopener">Read</a></li>
+        <li><span class="tag up">▲ Bullish (long term)</span> <span class="tiny muted">13–18 Nov · Quartz / Invezz</span><br><span>Goldman trimmed its end-2026 target to $4,150 but expects a multi-year recovery on central-bank buying, with Fed cuts from late 2027.</span> <a href="https://qz.com/goldman-sachs-lowers-gold-forecast-fed-hawkish-110626" target="_blank" rel="noopener">Read</a></li>
+      </ul></details>
+      <div class="small" style="margin-top:12px;display:flex;gap:14px;flex-wrap:wrap">
+        <a href="https://www.kitco.com/news/category/mining/gold" target="_blank" rel="noopener">Kitco gold news</a>
+        <a href="https://www.mcxindia.com/market-data/market-watch" target="_blank" rel="noopener">MCX market watch (official)</a>
+        <a href="https://www.cmegroup.com/markets/interest-rates/cme-fedwatch-tool.html" target="_blank" rel="noopener">CME FedWatch</a>
+        <a href="https://www.moneycontrol.com/commodity/gold-price.html" target="_blank" rel="noopener">Moneycontrol MCX gold</a>
+      </div>
+    </div>
+    <div class="card flex-side">
+      <h2 class="sechead"><span class="ic" aria-hidden="true"></span>Key levels &amp; dates</h2>
+      <div class="scroll" style="margin-top:10px"><table id="lvlTable"></table></div>
+      <div class="label" style="margin:18px 0 8px">China central bank (PBoC) gold</div>
+      <div class="small" style="display:flex;flex-direction:column;gap:6px">
+        <div><span class="tag up">▲ Buying</span> <b>+25.8 t</b> <span class="sec">in October (830,000 oz), largest monthly add in over 3 years</span></div>
+        <div class="sec">24th straight month of purchases · reserves 78.3 million oz · buying sped up as prices fell</div>
+        <div class="tiny muted">Official data from PBoC/SAFE, released around the 7th of each month. Next: ~7 Dec (November data). A pause would be a bearish signal.</div>
+      </div>
+      <div class="label" style="margin:18px 0 8px">Coming up</div>
+      <div class="small" style="display:flex;flex-direction:column;gap:8px">
+        <div><b>18 Nov</b> <span class="sec">FOMC minutes (US afternoon; after midnight IST)</span></div>
+        <div><b>4 Dec</b> <span class="sec">MCX December gold contract expiry · US jobs report for November (usual first-Friday release; check the BLS calendar)</span></div>
+        <div><b>~7 Dec</b> <span class="sec">China PBoC November gold reserves</span></div>
+        <div><b>9 Dec</b> <span class="sec">Fed rate decision (hike widely priced)</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="card" id="method">
+    <details>
+      <summary><b>How the forecast works</b>, and what it can’t do</summary>
+      <div class="small sec" style="margin-top:12px;display:flex;flex-direction:column;gap:8px;max-width:900px">
+        <p style="margin:0"><b>Direction</b> comes from four predictors with published research behind them: time-series momentum over 4 and 12 weeks (Moskowitz, Ooi &amp; Pedersen, 2012), a 10-vs-40-week moving-average trend rule (the gold market-timing literature, e.g. Bartsch, Baur, Dichtl &amp; Drobetz), an ARIMA(1,0,0) model of weekly returns (the classic statistical benchmark), and the 2-year base rate, since gold has risen in more weeks than it has fallen.</p>
+        <p style="margin:0"><b>Ensemble weighting:</b> each predictor’s vote is weighted by how far its own past hit rate sits above 50%. The weights are learned walk-forward, so the backtest never uses future data.</p>
+        <p style="margin:0"><b>News themes:</b> four separate GDELT searches, each with its own gold logic and priority weight: Fed &amp; interest rates (35%: hikes, hawkish talk and rising yields are bearish; cuts and falling yields bullish), US jobs (25%: strong payrolls or falling unemployment are bearish because they push the Fed to tighten; weak jobs are bullish), China’s central-bank gold buying (20%: purchases bullish, a pause bearish), and general gold headlines (20%). A theme with too little news that week drops out and the others are re-weighted.</p>
+        <p style="margin:0"><b>News</b> comes from GDELT, a free global news index updated every 15 minutes. Each gold headline from the last 7 days is scored with a gold-specific keyword model: rate cuts, safe-haven demand, conflict, a weaker dollar and central-bank buying count as bullish; rate hikes, rising yields, a stronger dollar and price drops count as bearish. Research links macro and geopolitical news to both gold returns and volatility, so a spike in news volume also widens the forecast range. GDELT keeps only 3 months of articles, so the news signal’s track record covers about 12 weeks.</p>
+        <p style="margin:0"><b>Combined call</b> = price-model score × (1 − news weight) + news score × news weight. You set the news weight with the slider.</p>
+        <p style="margin:0"><b>Range</b> comes from a GARCH(1,1) volatility model fitted to daily returns, giving 68% and 90% bands for 7 days ahead. The centre is shifted by the average past move after similar calls.</p>
+        <p style="margin:0"><b>Honest limits:</b> one-week gold direction is close to a coin flip for everyone, including professional analysts, so always compare the hit rate against the “always up” baseline. Ranges are more reliable than direction. MCX here is derived from spot, not the exchange feed. Live price is PAX Gold (each token backed by one troy ounce of LBMA gold), which tracks spot closely; the feed falls back to spot sources automatically. This is an educational tool, not investment advice.</p>
+      </div>
+    </details>
+  </section>
+</div>
+
+<script>
+(() => {
+"use strict";
+// ---------- config ----------
+const POLL_MS = 5000, FX_MS = 10*60*1000, HIST_MS = 30*60*1000, OZ = 31.1035;
+const DEFAULT_FACTOR = 131420 / (3775 / OZ * 10 * 93.92); // calibrated to MCX Dec, 18 Nov 2026 10:26 IST
+const LIVE_FEEDS = [
+  { name:"Binance · PAXG/USDT", url:"https://data-api.binance.vision/api/v3/ticker/24hr?symbol=PAXGUSDT",
+    parse:j=>({price:+j.lastPrice, prev:+j.prevClosePrice || (+j.lastPrice - +j.priceChange)}) },
+  { name:"Binance · PAXG/USDT", url:"https://api.binance.com/api/v3/ticker/24hr?symbol=PAXGUSDT",
+    parse:j=>({price:+j.lastPrice, prev:+j.prevClosePrice || (+j.lastPrice - +j.priceChange)}) },
+  { name:"gold-api.com · XAU spot", url:"https://api.gold-api.com/price/XAU", parse:j=>({price:+j.price}) },
+  { name:"Kraken · PAXG/USD", url:"https://api.kraken.com/0/public/Ticker?pair=PAXGUSD",
+    parse:j=>{ const r=j.result[Object.keys(j.result)[0]]; return {price:+r.c[0]}; } },
+  { name:"Coinbase · PAXG/USD", url:"https://api.coinbase.com/v2/prices/PAXG-USD/spot", parse:j=>({price:+j.data.amount}) },
+];
+// Each history source returns [{t (ms, UTC day start), c (close)}] oldest → newest
+const DAY=86400000;
+const HIST_FEEDS = [
+  { name:"Binance PAXG daily", load:async()=>(await getJSON("https://data-api.binance.vision/api/v3/klines?symbol=PAXGUSDT&interval=1d&limit=1000",10000)).map(k=>({t:k[0], c:+k[4]})) },
+  { name:"Binance PAXG daily", load:async()=>(await getJSON("https://api.binance.com/api/v3/klines?symbol=PAXGUSDT&interval=1d&limit=1000",10000)).map(k=>({t:k[0], c:+k[4]})) },
+  { name:"Coinbase PAXG daily", load:async()=>{ // 300 candles per request: page back 4 times
+      const out=new Map(); let end=Date.now();
+      for(let i=0;i<4;i++){ const start=end-299*DAY;
+        const a=await getJSON(`https://api.exchange.coinbase.com/products/PAXG-USD/candles?granularity=86400&start=${new Date(start).toISOString()}&end=${new Date(end).toISOString()}`,10000);
+        if(!Array.isArray(a)||!a.length) break; a.forEach(d=>out.set(d[0]*1000,+d[4])); end=start-DAY; }
+      return [...out].map(([t,c])=>({t,c})).sort((x,y)=>x.t-y.t); } },
+  { name:"Kraken PAXG daily", load:async()=>{ const j=await getJSON("https://api.kraken.com/0/public/OHLC?pair=PAXGUSD&interval=1440",10000);
+      const k=Object.keys(j.result).find(x=>x!=="last"); return j.result[k].map(r=>({t:r[0]*1000, c:+r[4]})); } },
+  { name:"freegoldapi.com daily", load:async()=>{ const a=await getJSON("https://freegoldapi.com/data/latest.json",15000);
+      const cut=Date.now()-1100*DAY; return a.filter(x=>!/\((gbp|eur|inr|cny|chf)\)/i.test(String(x.source||""))).map(x=>({t:Date.parse(x.date+"T00:00:00Z"), c:+x.price})).filter(x=>x.t>=cut&&x.c>0); } },
+];
+const FX_FEEDS = [
+  { name:"open.er-api.com", url:"https://open.er-api.com/v6/latest/USD", parse:j=>+j.rates.INR },
+  { name:"Frankfurter (ECB)", url:"https://api.frankfurter.app/latest?from=USD&to=INR", parse:j=>+j.rates.INR },
+];
+// Offline fallback: daily closes compiled 18 Nov 2026 (trading days; a few Oct sessions missing)
+const FALLBACK = [["2026-10-01",4202.3],["2026-10-02",4162.3],["2026-10-05",4156.8],["2026-10-06",4187.1],["2026-10-07",4140.7],["2026-10-12",4170.8],["2026-10-13",4160.1],["2026-10-19",4133.4],["2026-10-20",4115.4],["2026-10-21",4126.9],["2026-10-22",4023.9],["2026-10-23",3996.9],["2026-10-26",4006.1],["2026-10-27",4064.6],["2026-10-28",4052.1],["2026-10-29",4009.1],["2026-10-30",3876.4],["2026-11-02",3947.7],["2026-11-03",3928.5],["2026-11-04",4058.7],["2026-11-05",4087.5],["2026-11-06",4067.6],["2026-11-09",4138.9],["2026-11-10",4031.3],["2026-11-11",3987.5],["2026-11-12",3876.8],["2026-11-13",3887.6],["2026-11-16",3856.7],["2026-11-17",3858.6],["2026-11-18",3775.0]];
+
+// ---------- state ----------
+const store = { get(k,d){ try{ const v=localStorage.getItem(k); return v==null?d:JSON.parse(v);}catch(e){return d;} }, set(k,v){ try{localStorage.setItem(k,JSON.stringify(v));}catch(e){} } };
+const S = { hist:[], histSrc:"", cpw:7, live:null, prev:null, liveSrc:"", liveIdx:0, fx:93.92, fxSrc:"fallback (16 Nov close)",
+  factor:store.get("gd_factor", DEFAULT_FACTOR), newsW:store.get("gd_newsW",0.25), ticks:[], range:180, paused:false, bt:null, fc:null, fails:0, lastPrice:null };
+
+// ---------- helpers ----------
+const $ = id => document.getElementById(id);
+const usd = (v,d=0) => "$" + v.toLocaleString("en-US",{minimumFractionDigits:d,maximumFractionDigits:d});
+const inr = v => "₹" + Math.round(v).toLocaleString("en-IN");
+const pct = (v,d=2) => (v>=0?"+":"−") + Math.abs(v*100).toFixed(d) + "%";
+const sign = v => v>0?1:v<0?-1:0;
+const fmtDate = t => new Date(t).toLocaleDateString("en-GB",{day:"numeric",month:"short"});
+const fmtDateY = t => new Date(t).toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"});
+const Phi = x => { const t=1/(1+0.2316419*Math.abs(x)); const d=0.3989423*Math.exp(-x*x/2); const p=d*t*(0.3193815+t*(-0.3565638+t*(1.781478+t*(-1.821256+t*1.330274)))); return x>0?1-p:p; };
+async function getJSON(url, ms=4500){ const c=new AbortController(); const to=setTimeout(()=>c.abort(),ms); try{ const r=await fetch(url,{signal:c.signal,cache:"no-store"}); if(!r.ok) throw new Error(r.status); return await r.json(); } finally{ clearTimeout(to); } }
+const toMcx = p => p / OZ * 10 * S.fx * S.factor;
+
+// ---------- model ----------
+function sma(c,t,n){ if(t-n+1<0) return null; let s=0; for(let i=t-n+1;i<=t;i++) s+=c[i]; return s/n; }
+function signals(c,t,cpw){
+  const out={};
+  const r = k => (t-k>=0) ? Math.log(c[t]/c[t-k]) : null;
+  const r4=r(4*cpw), r12=r(12*cpw);
+  out.tsmom4 = r4==null?null:{dir:sign(r4), val:r4};
+  out.tsmom12 = r12==null?null:{dir:sign(r12), val:r12};
+  const m10=sma(c,t,10*cpw), m40=sma(c,t,40*cpw);
+  out.ma = (m10==null||m40==null)?null:{dir:sign(m10-m40), val:m10/m40-1};
+  // ARIMA(1,0,0) on non-overlapping weekly log returns, up to 2 years
+  const w=[]; for(let j=0;j<104;j++){ const a=t-j*cpw, b=a-cpw; if(b<0) break; w.push(Math.log(c[a]/c[b])); }
+  if(w.length>=30){ const x=w.slice(1), y=w.slice(0,-1); const mu=w.reduce((s,v)=>s+v,0)/w.length;
+    let cov=0,vr=0; for(let i=0;i<x.length;i++){ cov+=(x[i]-mu)*(y[i]-mu); vr+=(x[i]-mu)*(x[i]-mu);} const phi=vr?cov/vr:0;
+    const f=mu+phi*(w[0]-mu); out.ar1={dir:sign(f), val:f, phi}; out.drift={dir:sign(mu), val:mu}; } else { out.ar1=null; out.drift=null; }
+  return out;
+}
+const SIGS = [
+  {id:"tsmom4", name:"Momentum · 4-week", ref:"Moskowitz, Ooi & Pedersen (2012)", show:s=>pct(s.val,1)+" over 4 wks"},
+  {id:"tsmom12", name:"Momentum · 12-week", ref:"Moskowitz, Ooi & Pedersen (2012)", show:s=>pct(s.val,1)+" over 12 wks"},
+  {id:"ma", name:"Trend · 10 vs 40-week avg", ref:"Gold timing studies (≈50/200-day rule)", show:s=>"10-wk avg "+pct(s.val,1)+" vs 40-wk"},
+  {id:"ar1", name:"ARIMA(1,0,0) weekly", ref:"Statistical benchmark", show:s=>"expects "+pct(s.val,2)+" (φ="+s.phi.toFixed(2)+")"},
+  {id:"drift", name:"Base rate · 2-year drift", ref:"Long-run tendency of gold", show:s=>"avg week "+pct(s.val,2)},
+];
+function fitGarch(rets){
+  const n=rets.length; if(n<60) return null;
+  const mu=rets.reduce((a,b)=>a+b,0)/n; const e=rets.map(r=>r-mu);
+  const V=e.reduce((a,b)=>a+b*b,0)/n; let best=null;
+  for(let a=0.02;a<=0.20001;a+=0.02) for(let b=0.70;b<=0.98001;b+=0.02){ if(a+b>=0.999) continue;
+    const om=V*(1-a-b); let s2=V, ll=0;
+    for(let i=0;i<n;i++){ ll += -0.5*(Math.log(s2)+e[i]*e[i]/s2); s2 = om + a*e[i]*e[i] + b*s2; }
+    if(!best||ll>best.ll) best={a,b,om,V,ll,next:s2}; }
+  return best;
+}
+function garchVar(g,h){ let v=0, p=g.a+g.b; for(let k=1;k<=h;k++) v += g.V + Math.pow(p,k-1)*(g.next-g.V); return v; }
+function dailyRets(c,upto,max=750){ const s=Math.max(1,upto-max+1); const r=[]; for(let i=s;i<=upto;i++) r.push(Math.log(c[i]/c[i-1])); return r; }
+function combine(sig, rec){
+  let num=0, den=0;
+  for(const d of SIGS){ const s=sig[d.id]; if(!s||!s.dir) continue; const R=rec[d.id];
+    // shrink each hit rate toward 50% (prior worth 20 weeks) so a short lucky streak can't dominate
+    const hr=(R.hits+10)/(R.calls+20); const w=R.calls<26?0.01:Math.max(0,hr-0.5); num+=w*s.dir; den+=w; }
+  if(den<=0.0001){ const d=sig.drift; return d&&d.dir? d.dir*0.2 : 0; } // no proven edge: fall back to the base rate
+  return num/den;
+}
+
+function backtest(){
+  const c=S.hist.map(x=>x.c), N=c.length, h=S.cpw, start=40*S.cpw;
+  const rec={}; SIGS.forEach(d=>rec[d.id]={calls:0,hits:0});
+  const ens={calls:0,hits:0,strongCalls:0,strongHits:0,log:[],moveUp:[],moveDn:[],all:[]}; const base={calls:0,hits:0};
+  const band={n:0,in68:0,in90:0}; let g=null;
+  let step=0;
+  for(let t=start; t+h<=N-1; t+=h, step++){
+    const sig=signals(c,t,S.cpw), out=Math.log(c[t+h]/c[t]), od=sign(out);
+    const score=combine(sig,rec);
+    for(const d of SIGS){ const s=sig[d.id]; if(s&&s.dir){ rec[d.id].calls++; if(s.dir===od) rec[d.id].hits++; } }
+    base.calls++; if(od>0) base.hits++;
+    ens.all.push({t:S.hist[t].t, score, out});
+    const ed=Math.abs(score)<0.1?0:sign(score);
+    if(ed){ ens.calls++; const hit=ed===od; if(hit) ens.hits++; if(Math.abs(score)>=0.5){ens.strongCalls++; if(hit) ens.strongHits++;}
+      (ed>0?ens.moveUp:ens.moveDn).push(out); ens.log.push({t:S.hist[t].t, dir:ed, out, hit}); }
+    if(step%6===0 || !g) g=fitGarch(dailyRets(c,t));
+    if(g){ const sd=Math.sqrt(garchVar(g,h)); band.n++; if(Math.abs(out)<=sd) band.in68++; if(Math.abs(out)<=1.645*sd) band.in90++; }
+  }
+  return {rec,ens,base,band,steps:step};
+}
+
+function forecastNow(){
+  const c=S.hist.map(x=>x.c), N=c.length, t=N-1, bt=S.bt; if(!bt||N<60) return null;
+  const sig=signals(c,t,S.cpw); const priceScore=combine(sig,bt.rec);
+  const news=NW.cur; const wN = news&&news.n>=5 ? S.newsW : 0;
+  const score=(1-wN)*priceScore + wN*(news?news.score:0);
+  const dir=Math.abs(score)<0.1?0:sign(score);
+  const g=fitGarch(dailyRets(c,t)); if(!g) return null;
+  const vf=NW.volFactor||1; const sd=Math.sqrt(garchVar(g,S.cpw))*vf;
+  const moves = dir>0?bt.ens.moveUp: dir<0?bt.ens.moveDn: [];
+  const drift = moves.length>=8 ? moves.reduce((a,b)=>a+b,0)/moves.length : 0;
+  const P=c[t], center=P*Math.exp(drift);
+  const cone=[]; for(let k=0;k<=S.cpw;k++){ const v=k?garchVar(g,k):0, s=Math.sqrt(v)*vf, m=Math.exp(drift*k/S.cpw);
+    cone.push({t:S.hist[t].t + k*86400000*(7/S.cpw), c:P*m, lo68:P*m*Math.exp(-s), hi68:P*m*Math.exp(s), lo90:P*m*Math.exp(-1.645*s), hi90:P*m*Math.exp(1.645*s)}); }
+  const callHits = dir? bt.ens.log.filter(l=>l.dir===dir) : [];
+  const callRate = callHits.length? callHits.filter(l=>l.hit).length/callHits.length : null;
+  const pUp = 1-Phi(-drift/sd);
+  return {sig,score,priceScore,newsScore:news?news.score:null,wN,dir,g,sd,vf,drift,center,P,cone,callRate,callN:callHits.length,pUp};
+}
+
+// ---------- rendering ----------
+function setChg(el, diff, rel, fmt){ el.className="chg "+(diff>0?"up":diff<0?"down":"flat");
+  el.textContent = (diff>0?"▲ ":diff<0?"▼ ":"● ") + (diff>=0?"+":"−") + fmt(Math.abs(diff)) + " (" + pct(rel) + ") 24h"; }
+function flash(el, d){ if(!d) return; el.classList.remove("flash-up","flash-down"); void el.offsetWidth; el.classList.add(d>0?"flash-up":"flash-down"); setTimeout(()=>el.classList.remove("flash-up","flash-down"),900); }
+
+function renderKpis(){
+  const p=S.live; if(p==null) return;
+  const d = S.lastPrice==null?0:p-S.lastPrice;
+  $("kSpot").textContent = usd(p,2); flash($("kSpot"),d);
+  if(S.prev){ setChg($("kSpotChg"), p-S.prev, p/S.prev-1, v=>usd(v,2)); }
+  $("kSpotSrc").textContent = "Source: "+S.liveSrc;
+  const m=toMcx(p); $("kMcx").textContent = inr(m); flash($("kMcx"),d);
+  if(S.prev){ const mp=toMcx(S.prev); setChg($("kMcxChg"), m-mp, m/mp-1, v=>inr(v).slice(1)); }
+  $("kMcxG").textContent = inr(m/10);
+  $("kFx").textContent = "₹" + S.fx.toFixed(2); $("kFxSrc").textContent = "Source: "+S.fxSrc+" · refreshes every 10 min";
+  $("kFactor").textContent = "×" + S.factor.toFixed(4);
+  if(!(document.activeElement&&document.activeElement.id&&document.activeElement.id.startsWith("jw_"))) renderJewellers();
+  // sparkline
+  const tk=S.ticks.slice(-120); const sv=$("spark");
+  if(tk.length>1){ const mn=Math.min(...tk), mx=Math.max(...tk), r=(mx-mn)||1;
+    const pts=tk.map((v,i)=>`${(i/(tk.length-1)*200).toFixed(1)},${(34-(v-mn)/r*32).toFixed(1)}`).join(" ");
+    sv.innerHTML=`<polyline points="${pts}" fill="none" stroke="var(--gold)" stroke-width="2" vector-effect="non-scaling-stroke" stroke-linejoin="round"/>`;
+    $("sparkLbl").textContent = `${tk.length} ticks · range ${usd(mn,2)} – ${usd(mx,2)}`; }
+}
+
+function renderForecast(){
+  const f=S.fc, bt=S.bt; if(!f) return;
+  const lab = f.dir>0?"Up":f.dir<0?"Down":"Neutral", cls=f.dir>0?"up":f.dir<0?"down":"flat", arrow=f.dir>0?"▲ ":f.dir<0?"▼ ":"● ";
+  const end=f.cone[f.cone.length-1];
+  $("kFcDir").className="big "+cls; $("kFcDir").textContent = arrow+lab;
+  $("kFcRange").textContent = `${usd(end.lo68)} – ${usd(end.hi68)} (68%)`;
+  $("kFcRange").className="chg sec";
+  $("kFcConf").textContent = f.callRate!=null ? `When the model last called “${lab}”, it was right ${(f.callRate*100).toFixed(0)}% of ${f.callN} weeks` : "No directional edge: the predictors disagree";
+  $("fcDir").className="big "+cls; $("fcDir").style.margin="0"; $("fcDir").textContent=arrow+lab;
+  $("fcScore").textContent = "combined score " + (f.score>=0?"+":"−") + Math.abs(f.score).toFixed(2);
+  const m=$("fcMeter"); const w=Math.abs(f.score)*50; m.style.left=(f.score<0?50-w:50)+"%"; m.style.width=w+"%"; m.style.background=f.score<0?"var(--down)":"var(--up)";
+  $("fcFrom").textContent=fmtDate(Date.now()); $("fcTo").textContent=fmtDate(Date.now()+7*86400000);
+  // range bar (90% outer, 68% inner, markers for now and expected)
+  const lo=end.lo90, hi=end.hi90, X=v=>((v-lo)/(hi-lo)*100).toFixed(2)+"%";
+  $("rangeBar").innerHTML = `
+    <div style="position:absolute;left:0;right:0;top:18px;height:14px;border-radius:7px;background:var(--accent-soft)"></div>
+    <div style="position:absolute;left:${X(end.lo68)};width:calc(${X(end.hi68)} - ${X(end.lo68)});top:18px;height:14px;border-radius:7px;background:var(--accent-mid)"></div>
+    <div title="Now" style="position:absolute;left:${X(f.P)};top:12px;width:2px;height:26px;background:var(--t1);transform:translateX(-1px)"></div>
+    <div title="Expected" style="position:absolute;left:${X(f.center)};top:16px;width:12px;height:12px;border-radius:50%;background:var(--accent);border:2px solid var(--s1);transform:translate(-6px,2px)"></div>
+    <div class="tiny muted" style="position:absolute;left:0;top:40px">${usd(lo)}</div>
+    <div class="tiny muted" style="position:absolute;right:0;top:40px">${usd(hi)}</div>
+    <div class="tiny" style="position:absolute;left:${X(f.P)};top:-4px;transform:translateX(-50%);color:var(--t2);white-space:nowrap">now ${usd(f.P)}</div>`;
+  const kv=[
+    ["Now", usd(f.P,2)],
+    ["Price-model score", (f.priceScore>=0?"+":"−")+Math.abs(f.priceScore).toFixed(2)],
+    ["News score (7-day)", f.newsScore==null?"loading…":(f.newsScore>=0?"+":"−")+Math.abs(f.newsScore).toFixed(2)+(f.wN?"":" (not used)")],
+    ["Expected in 7 days", usd(f.center)+" · "+inr(toMcx(f.center))],
+    ["68% range (USD)", usd(end.lo68)+" – "+usd(end.hi68)],
+    ["90% range (USD)", usd(end.lo90)+" – "+usd(end.hi90)],
+    ["68% range (MCX)", inr(toMcx(end.lo68))+" – "+inr(toMcx(end.hi68))],
+    ["Weekly volatility (GARCH)", "±"+(f.sd*100).toFixed(2)+"%"+(f.vf>1.001?` (news-adjusted ×${f.vf.toFixed(2)})`:"")],
+  ];
+  $("fcKv").innerHTML = kv.map(([k,v])=>`<dt>${k}</dt><dd>${v}</dd>`).join("");
+  $("sigTable").innerHTML = `<thead><tr><th>Predictor</th><th>Call</th><th class="n">Past hit rate</th></tr></thead><tbody>` +
+    SIGS.map(d=>{ const s=f.sig[d.id], R=bt.rec[d.id]; const call=!s?'<span class="muted">n/a</span>':s.dir>0?'<span class="tag up">▲ Up</span>':s.dir<0?'<span class="tag down">▼ Down</span>':'<span class="tag flat">● Flat</span>';
+      return `<tr><td>${d.name}<div class="tiny muted">${s?d.show(s):""}</div></td><td>${call}</td><td class="n">${R.calls?(R.hits/R.calls*100).toFixed(0)+"%":"—"}</td></tr>`; }).join("")
+    + (()=>{ const n=NW.cur; const call=!n?'<span class="muted">loading</span>':n.dir>0?'<span class="tag up">▲ Up</span>':n.dir<0?'<span class="tag down">▼ Down</span>':'<span class="tag flat">● Flat</span>';
+        return `<tr><td>News · Fed, US jobs, China PBoC, gold<div class="tiny muted">${n?THEMES.map(th=>{ const t=NW.themes[th.id]; return t&&t.used>=(th.id==="gold"?5:2)?`${th.short} ${t.score>=0?"+":"−"}${Math.abs(t.score).toFixed(2)}`:null; }).filter(Boolean).join(" · ")||"too little news":"loading 4 news themes…"}</div></td><td>${call}</td><td class="n">${NW.rec.calls>=4?(NW.rec.hits/NW.rec.calls*100).toFixed(0)+"%":"—"}</td></tr>`; })()
+    + `</tbody>`;
+}
+
+function renderBacktest(){
+  const bt=S.bt; if(!bt) return;
+  const first=S.hist[40*S.cpw]?S.hist[40*S.cpw].t:S.hist[0].t;
+  $("btSub").textContent = `Walk-forward backtest on ${S.histSrc}: ${bt.steps} weekly calls from ${fmtDateY(first)} to ${fmtDateY(S.hist[S.hist.length-1].t)}. Each week uses only data available then, graded 7 days later.`;
+  const baseRate=bt.base.calls?bt.base.hits/bt.base.calls:0;
+  const row=(name,ref,calls,hits)=>{ const hr=calls?hits/calls:null; const edge=hr==null?null:hr-baseRate;
+    const ed = edge==null?"—":`<span class="${edge>0.005?"up":edge<-0.005?"down":"flat"}">${edge>=0?"+":"−"}${Math.abs(edge*100).toFixed(1)} pts</span>`;
+    return `<tr><td>${name}<div class="tiny muted">${ref}</div></td><td class="n">${calls}</td><td class="n"><b>${hr==null?"—":(hr*100).toFixed(1)+"%"}</b></td><td class="n">${ed}</td></tr>`; };
+  $("btTable").innerHTML = `<thead><tr><th>Predictor</th><th class="n">Calls</th><th class="n">Hit rate</th><th class="n">vs “always up”</th></tr></thead><tbody>`
+    + row("<b>Ensemble (this dashboard)</b>","Performance-weighted vote",bt.ens.calls,bt.ens.hits)
+    + row("Ensemble · high-conviction only","|score| ≥ 0.5",bt.ens.strongCalls,bt.ens.strongHits)
+    + SIGS.map(d=>row(d.name,d.ref,bt.rec[d.id].calls,bt.rec[d.id].hits)).join("")
+    + row("News · 4 priority themes","Fed 35% · US jobs 25% · China PBoC 20% · gold 20% · last ~12 weeks only",NW.rec.calls,NW.rec.hits)
+    + row(`<b>Combined: price + news (${Math.round(S.newsW*100)}% news)</b>`,"Same recent weeks as the news row",NW.comb.calls,NW.comb.hits)
+    + row("Baseline: always say “up”","Gold’s natural upward drift",bt.base.calls,bt.base.hits)
+    + `<tr><td>Kitco Wall Street survey<div class="tiny muted">Published record, 2019 season (not this sample)</div></td><td class="n">35</td><td class="n"><b>54%</b></td><td class="n muted">—</td></tr>`
+    + `</tbody>`;
+  $("strip").innerHTML = bt.ens.log.slice(-20).map(l=>`<div class="cell ${l.hit?"hit":"miss"}" title="${fmtDateY(l.t)}: called ${l.dir>0?"up":"down"}, gold moved ${pct(l.out,1)}">${l.hit?"✓":"✗"}</div>`).join("") || '<span class="small muted">Not enough history yet</span>';
+  const b=bt.band, g=S.fc&&S.fc.g;
+  $("garchKv").innerHTML = [
+    ["Weeks tested", b.n],
+    ["Inside 68% band", b.n?(b.in68/b.n*100).toFixed(0)+"% (target 68%)":"—"],
+    ["Inside 90% band", b.n?(b.in90/b.n*100).toFixed(0)+"% (target 90%)":"—"],
+    ["Fitted α / β", g? g.a.toFixed(2)+" / "+g.b.toFixed(2):"—"],
+  ].map(([k,v])=>`<dt>${k}</dt><dd>${v}</dd>`).join("");
+}
+
+function renderLevels(){
+  const lv=[["Resistance","$3,920–3,930",3925],["Resistance","$3,888–3,898",3893],["Resistance","$3,850–3,855",3852],["Psychological","$3,800",3800],["Support","$3,750–3,770",3760],["Support","$3,680–3,700",3690],["Bear case","≈$3,200 (200-wk avg)",3200]];
+  $("lvlTable").innerHTML = `<thead><tr><th>Level</th><th class="n">USD</th><th class="n">MCX ≈</th></tr></thead><tbody>` +
+    lv.map(([k,u,v])=>`<tr><td><span class="tag ${k==="Support"||k==="Bear case"?"down":k==="Resistance"?"up":"flat"}">${k}</span></td><td class="n">${u}</td><td class="n">${inr(toMcx(v))}</td></tr>`).join("") + `</tbody>`;
+}
+
+// ---------- jeweller rates ----------
+const JW_API="https://xmuwvoizfnvkugfmjdby.supabase.co/functions/v1/jeweller-rates";
+const JW_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhtdXd2b2l6Zm52a3VnZm1qZGJ5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQ5OTU2NTYsImV4cCI6MjExMDU3MTY1Nn0.RD5viS5BBKmvBQH-VR4QkUUxJqPOAfiC5EhVNo4kBBk"; // public anon key: read-only access to this function
+const JEWELLERS=[
+  {id:"auragold", name:"AuraGold", url:"https://auragold.in/"},
+  {id:"bhima", name:"Bhima Gold", url:"https://www.bhimagold.com/"},
+];
+const MKT_PREMIUM=13326/13142; // India retail 24K vs MCX per gram, 18 Nov 2026
+const JW={server:{}, mcxAt:{}, ok:null, checked:null};
+function jwState(){ return store.get("gd_jw",{}); }
+async function pollJewellers(){
+  try{ const c=new AbortController(); const to=setTimeout(()=>c.abort(),20000);
+    const r=await fetch(JW_API,{headers:{Authorization:"Bearer "+JW_KEY, apikey:JW_KEY}, signal:c.signal, cache:"no-store"}); clearTimeout(to);
+    if(!r.ok) throw new Error(r.status); const j=await r.json();
+    for(const x of j.rates||[]){ const prev=JW.server[x.id];
+      if(x.k24 && (!prev || prev.updated_at!==x.updated_at)) JW.mcxAt[x.id]= S.live? toMcx(S.live)/10 : null; // MCX level when this rate was read
+      JW.server[x.id]=x; }
+    JW.ok=true; }catch(e){ JW.ok=false; }
+  JW.checked=Date.now(); renderJewellers();
+}
+const agoTxt=t=>{ const m=(Date.now()-t)/60000; return m<1?"just now":m<60?Math.round(m)+" min ago":m<2880?Math.round(m/60)+" h ago":Math.round(m/1440)+" d ago"; };
+function renderJewellers(){
+  const el=$("jwTable"); if(!el||!S.live) return;
+  const mcxG=toMcx(S.live)/10, st=jwState(), est=mcxG*MKT_PREMIUM;
+  const big=v=>`<span style="font-family:'Space Grotesk';font-size:20px;font-weight:600">${v}</span>`;
+  const rows=JEWELLERS.map(j=>{ const sv=JW.server[j.id], man=st[j.id];
+    let main="—", sub="", extra="", diff="—", srcTag="";
+    if(sv&&sv.k24){ const base=JW.mcxAt[j.id]; const moving= base? sv.k24*(mcxG/base) : sv.k24;
+      main=inr(sv.k24); srcTag='<span class="tag up" style="font-size:11px">● Live feed</span>';
+      sub=`published ${agoTxt(Date.parse(sv.updated_at))}${base&&Math.abs(moving-sv.k24)>=1?` · moving with market ≈ ${inr(moving)}`:""}`;
+      const bits=[]; if(sv.k24_gst) bits.push(`incl. GST ${inr(sv.k24_gst)}`); if(sv.k24_sell) bits.push(`sell-back ${inr(sv.k24_sell)}`); if(sv.k22) bits.push(`22K ${inr(sv.k22)}`); if(sv.k18) bits.push(`18K ${inr(sv.k18)}`);
+      extra=bits.join(" · ");
+      const d=sv.k24-est; diff=`<span class="sec">${d>=0?"+":"−"}${inr(Math.abs(d)).slice(1)}</span><div class="tiny muted">vs market</div>`;
+    } else if(man){ const v=man.rate*(mcxG/man.mcxG); main=inr(v); srcTag='<span class="tag flat" style="font-size:11px">Manual</span>';
+      sub=`you entered ${inr(man.rate)} ${agoTxt(man.at)} · moving with market`;
+      const d=v-est; diff=`<span class="sec">${d>=0?"+":"−"}${inr(Math.abs(d)).slice(1)}</span><div class="tiny muted">vs market</div>`;
+    } else { sub = JW.ok===false? "feed unreachable · enter rate manually" : (sv&&sv.last_error? "feed error: "+sv.last_error : "loading…"); }
+    return `<tr><td><b>${j.name}</b> ${srcTag}<div class="tiny"><a href="${j.url}" target="_blank" rel="noopener">Open site</a></div></td>
+      <td class="n">${big(main)}<div class="tiny muted">${sub}</div>${extra?`<div class="tiny sec" style="margin-top:2px">${extra}</div>`:""}</td>
+      <td class="n">${diff}</td>
+      <td><form data-jw="${j.id}" style="display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap"><label for="jw_${j.id}" style="position:absolute;left:-9999px">${j.name} 24K rate per gram</label><input id="jw_${j.id}" inputmode="decimal" placeholder="Manual ₹/g" style="width:110px"><button type="submit">Set</button></form></td></tr>`; }).join("");
+  const focused=document.activeElement&&document.activeElement.id&&document.activeElement.id.startsWith("jw_")?document.activeElement.id:null;
+  const vals={}; JEWELLERS.forEach(j=>{ const i=$("jw_"+j.id); if(i) vals[j.id]=i.value; });
+  el.innerHTML=`<thead><tr><th>Jeweller</th><th class="n">24K ₹/g</th><th class="n">Difference</th><th class="n">Manual backup</th></tr></thead><tbody>${rows}
+    <tr><td><b>Market estimate</b><div class="tiny muted">MCX ÷ 10 × retail premium</div></td><td class="n">${big(inr(est))}<div class="tiny muted">22K ≈ ${inr(est*0.916)} · updates every 5 s</div></td><td class="n muted">—</td><td></td></tr></tbody>`;
+  JEWELLERS.forEach(j=>{ const i=$("jw_"+j.id); if(i&&vals[j.id]) i.value=vals[j.id]; });
+  if(focused&&$(focused)) $(focused).focus();
+  $("jwSub").textContent = JW.ok===false ? "Couldn’t reach your Supabase rates function. Retrying every minute; manual entry works meanwhile."
+    : `Live from each jeweller’s own published rate · fetched every 5 min by your Supabase function${JW.checked?` · checked ${new Date(JW.checked).toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"})}`:""}`;
+  el.querySelectorAll("form[data-jw]").forEach(f=>f.addEventListener("submit",ev=>{ ev.preventDefault(); const id=f.dataset.jw; const v=+String($("jw_"+id).value).replace(/[^0-9.]/g,"");
+    const st=jwState();
+    if(!v){ delete st[id]; store.set("gd_jw",st); renderJewellers(); return; }
+    if(!(v>1000&&v<100000)){ $("jw_"+id).value=""; $("jw_"+id).placeholder="e.g. 13326"; return; }
+    st[id]={rate:v, mcxG:toMcx(S.live)/10, at:Date.now()}; store.set("gd_jw",st); $("jw_"+id).value=""; renderJewellers(); }));
+}
+
+// ---------- cheapest gold online ----------
+const SB_REST="https://xmuwvoizfnvkugfmjdby.supabase.co/rest/v1";
+const MY_CARDS=[["SBI","credit"],["SBI","debit"],["HDFC","credit"],["HDFC","debit"],["Axis","credit"],["Axis","debit"]];
+const PRIORITY_BANKS=["SBI","HDFC","Axis"];
+const DL={deals:[], offers:[], loaded:null, ok:null, tab:store.get("gd_dealTab","999"),
+  cards:store.get("gd_cards", MY_CARDS.map(([b,t])=>b+"-"+t)), other:store.get("gd_otherBanks",false), check:store.get("gd_checkOffers",true)};
+async function pollDeals(){
+  try{ const h={apikey:JW_KEY, Authorization:"Bearer "+JW_KEY};
+    const [d,o]=await Promise.all([
+      fetch(SB_REST+"/gold_deals?select=*&order=checked_at.desc",{headers:h,cache:"no-store"}).then(r=>{ if(!r.ok) throw 0; return r.json(); }),
+      fetch(SB_REST+"/card_offers?select=*",{headers:h,cache:"no-store"}).then(r=>{ if(!r.ok) throw 0; return r.json(); })]);
+    DL.deals=d; DL.offers=o; DL.ok=true; DL.loaded=Date.now(); }catch(e){ DL.ok=false; }
+  renderDeals();
+}
+function offerFits(o){
+  if(o.gold_eligible==="no") return false;
+  if(o.gold_eligible==="check" && !DL.check) return false;
+  if(PRIORITY_BANKS.includes(o.bank)){ return o.card_type==="any" ? DL.cards.some(k=>k.startsWith(o.bank+"-")) : DL.cards.includes(o.bank+"-"+o.card_type); }
+  return DL.other;
+}
+function priceDeal(d, mkt24){
+  const est = d.market24_at_check ? d.listed_price*(mkt24/d.market24_at_check) : +d.listed_price;
+  let best=null;
+  for(const o of DL.offers){ if(o.platform!==d.platform && o.platform!=="Any") continue; if(!offerFits(o)) continue; if(est < (+o.min_spend||0)) continue;
+    let amt = o.pct!=null ? est*o.pct/100 : +o.flat||0; if(o.cap!=null) amt=Math.min(amt,+o.cap);
+    // prefer SBI/HDFC/Axis on a near-tie (within ₹50)
+    const pri=PRIORITY_BANKS.includes(o.bank);
+    if(!best || amt>best.amt+50 || (Math.abs(amt-best.amt)<=50 && pri && !best.pri)) best={o,amt,pri}; }
+  const coupon=+d.coupon_off||0, fee=+d.fee||0;
+  const eff = est - (best?best.amt:0) - coupon + fee;
+  const is24 = d.fineness===999;
+  const perG = is24 ? eff/(d.weight_g*d.fineness/999) : eff/d.weight_g;      // 24K: per gram of 999; 22K: per gram of 916
+  const ref = is24 ? mkt24 : mkt24*0.916;
+  return {d, est, best, eff, perG, is24, vsMkt: perG/ref-1};
+}
+function renderDeals(){
+  const pills=$("cardPills"); if(!pills||!S.live) return;
+  pills.innerHTML = MY_CARDS.map(([b,t])=>{ const k=b+"-"+t; return `<button data-card="${k}" aria-pressed="${DL.cards.includes(k)}">${b} ${t}</button>`; }).join("");
+  pills.querySelectorAll("[data-card]").forEach(btn=>btn.onclick=()=>{ const k=btn.dataset.card; DL.cards=DL.cards.includes(k)?DL.cards.filter(x=>x!==k):[...DL.cards,k]; store.set("gd_cards",DL.cards); renderDeals(); });
+  $("optOther").setAttribute("aria-pressed",String(DL.other)); $("optCheck").setAttribute("aria-pressed",String(DL.check));
+  if(DL.ok===false && !DL.deals.length){ $("dlSub").textContent="Couldn’t reach the deals table. Retrying every 5 minutes."; return; }
+  if(!DL.deals.length){ $("dlSub").textContent="Loading deals…"; return; }
+  const mkt24=toMcx(S.live)/10*MKT_PREMIUM;
+  // only 999 (24K) and 916 (22K); 995 items are ignored
+  const all=DL.deals.filter(d=>+d.fineness===999||+d.fineness===916).map(d=>priceDeal(d,mkt24)).sort((a,b)=>a.perG-b.perG);
+  const want24=DL.tab==="999";
+  const rows=all.filter(r=>r.is24===want24);
+  ["999","916"].forEach(t=>{ const b=$("tab"+t), on=DL.tab===t, n=all.filter(r=>r.is24===(t==="999")&&r.vsMkt<0).length;
+    b.setAttribute("aria-selected",String(on)); b.style.borderBottomColor=on?"var(--accent)":"transparent"; b.style.color=on?"var(--t1)":"var(--t3)"; b.style.fontWeight=on?"700":"500";
+    b.textContent=(t==="999"?"24K · 999":"22K · 916")+(n?`  (${n} below market)`:""); b.onclick=()=>{ DL.tab=t; store.set("gd_dealTab",t); renderDeals(); }; });
+  const esc=x=>String(x??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+  const offTxt=b=>{ if(!b) return '<span class="muted">No offer for your cards</span>'; const o=b.o;
+    return `<b>${esc(o.card_name||o.bank+" "+o.card_type)}</b> −${inr(b.amt).slice(1)} <span class="tiny muted">(${o.kind}${o.code?` · code <b>${esc(o.code)}</b>`:""})</span>${o.gold_eligible==="check"?' <span class="tag flat" style="font-size:11px">check</span>':''}`; };
+  const vsTxt=v=>`<span class="${v<0?"up":v<0.03?"flat":"down"}">${v>=0?"+":"−"}${Math.abs(v*100).toFixed(1)}%</span>`;
+  const ageTxt=t=>{ const h=(Date.now()-Date.parse(t))/3600000; return h<1?"<1 h ago":h<48?Math.round(h)+" h ago":Math.round(h/24)+" d ago"; };
+  const below=rows.filter(r=>r.vsMkt<0);
+  const bestOf=f=>below.filter(f)[0];
+  const nearest=f=>rows.filter(f)[0];
+  const card=(label,r)=> r ? `<div class="card" style="background:var(--s2);border-color:${r.vsMkt<0?"var(--up)":"var(--line)"}">
+      <div class="label" style="color:var(--accent)">${label}</div>
+      <div class="big" style="font-size:30px">${inr(r.perG)}<span class="small muted" style="font-family:Inter"> /g</span></div>
+      <div class="small" style="margin-top:4px">${vsTxt(r.vsMkt)} vs market · pay <b>${inr(r.eff)}</b> for ${r.d.weight_g} g</div>
+      <div class="small sec" style="margin-top:8px"><b>${esc(r.d.platform)}</b> · ${esc(r.d.brand||"")} ${esc(r.d.product)}</div>
+      <div class="small" style="margin-top:4px">${offTxt(r.best)}</div>
+      <div class="tiny muted" style="margin-top:6px">price checked ${ageTxt(r.d.checked_at)} · <a href="${esc(r.d.url)}" target="_blank" rel="noopener">Open on ${esc(r.d.platform)}</a></div></div>` : `<div class="card"><div class="label">${label}</div><div class="small sec" style="margin-top:8px">Nothing below the market rate with your cards right now.</div></div>`;
+  const none=(label,f)=>{ const n=nearest(f); return `<div class="card" style="background:var(--s2)"><div class="label">${label}</div>
+      <div class="small sec" style="margin-top:8px"><b>Nothing below market right now</b> with your cards.</div>
+      ${n?`<div class="tiny muted" style="margin-top:6px">Closest: ${esc(n.d.platform)} · ${esc(n.d.product)} at ${inr(n.perG)}/g (${vsTxt(n.vsMkt)} vs market)</div>`:""}</div>`; };
+  const top=bestOf(()=>true), lbl=want24?"Lowest 24K (999) below market · per gram":"Lowest 22K (916) below market · per gram";
+  $("dlBest").innerHTML = top?card(lbl,top):none(want24?"24K (999) below market":"22K (916) below market",()=>true);
+  $("dlTable").innerHTML = `<thead><tr><th>Where</th><th>Product</th><th class="n">Est. price now</th><th>Best offer for your cards</th><th class="n">Fee</th><th class="n">You pay</th><th class="n">₹/g</th><th class="n">vs market</th></tr></thead><tbody>`+
+    (below.length? "" : `<tr><td colspan="8" class="small sec">No listing is below the market rate with your selected cards right now. The table fills in as soon as one is.</td></tr>`)+
+    below.map(r=>`<tr><td><b>${esc(r.d.platform)}</b><div class="tiny muted">checked ${ageTxt(r.d.checked_at)}</div></td>
+      <td>${esc(r.d.brand||"")} · ${esc(r.d.product)}<div class="tiny muted">${r.d.weight_g} g · ${r.is24?"24K":"22K"} (${r.d.fineness})${r.d.notes?" · "+esc(r.d.notes):""}</div></td>
+      <td class="n">${inr(r.est)}${r.d.market24_at_check?"":'<div class="tiny muted">as listed</div>'}</td>
+      <td>${offTxt(r.best)}${r.d.coupon_code?`<div class="tiny">store code <b>${esc(r.d.coupon_code)}</b> −${inr(r.d.coupon_off).slice(1)}</div>`:""}</td>
+      <td class="n">${+r.d.fee?inr(r.d.fee):"—"}</td><td class="n"><b>${inr(r.eff)}</b></td><td class="n">${inr(r.perG)}</td><td class="n">${vsTxt(r.vsMkt)}</td></tr>`).join("")+`</tbody>`;
+  $("dlSub").textContent=`${want24?"24K (999)":"22K (916)"}: ${below.length} of ${rows.length} tracked listings below market · market 24K ≈ ${inr(mkt24)}/g, 22K ≈ ${inr(mkt24*0.916)}/g (live) · deals table checked ${DL.loaded?new Date(DL.loaded).toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"}):"—"}`;
+}
+document.querySelectorAll("[data-gd]").forEach(b=>b.addEventListener("click",()=>{ document.querySelectorAll("[data-gd]").forEach(x=>x.setAttribute("aria-pressed","false")); b.setAttribute("aria-pressed","true"); $("gdFrame").src=b.dataset.gd; }));
+$("optOther").addEventListener("click",()=>{ DL.other=!DL.other; store.set("gd_otherBanks",DL.other); renderDeals(); });
+$("optCheck").addEventListener("click",()=>{ DL.check=!DL.check; store.set("gd_checkOffers",DL.check); renderDeals(); });
+
+// ---------- news model (GDELT, 4 themes) ----------
+const GDELT="https://api.gdeltproject.org/api/v2/doc/doc";
+const gUrl=(q,params)=>GDELT+"?query="+encodeURIComponent(q+" sourcelang:english")+"&format=json&"+params;
+// Gold-specific keyword lists. Generic "tone" gets gold backwards: bad geopolitical news is good for gold.
+const BULL=[/rate cuts?\b|\bcuts? (interest )?rates|easing/,/dovish/,/safe[- ]haven/,/\bwar\b|conflict|missile|airstrike|invasion/,/escalat/,/recession/,/central banks? (buy|add|purchas|boost)/,/record high|all[- ]time high|\bpeak/,/\brall(y|ies|ied)/,/surg(e|es|ed|ing)/,/\bjump(s|ed)?\b/,/\brises?\b|\brose\b|\brising\b/,/\bgains?\b|\bgained\b/,/weak(er|ening)? dollar|dollar (falls|slips|weakens|drops|slides|eases)/,/inflation (fears|worries|concerns)/,/uncertaint/,/crisis|turmoil/,/sanction/,/tariff/,/inflows?/,/\bsoar/,/\bclimb/,/rebound|recover/,/\bbuy(ing)?\b|demand (rises|jumps|surges)/];
+const BEAR=[/rate hikes?|hikes? (interest )?rates|raise rates|rate increase|tighten/,/hawkish/,/yields? (rise|rises|climb|climbs|jump|jumps|surge|surges|hit|spike)/,/strong(er)? dollar|dollar (rises|gains|firms|strengthens|jumps|climbs|rallies|surges)/,/\bfalls?\b|\bfell\b|\bfalling\b/,/\bslip/,/\bdrops?\b|\bdropped\b/,/slump/,/plung/,/tumbl/,/declin/,/\bloss(es)?\b|\blose(s)?\b/,/lowest|\blows?\b/,/sell[- ]?off|selling/,/outflows?/,/ceasefire|truce|peace (deal|talks|agreement)/,/profit[- ]taking/,/retreat/,/\bslid(e|es)?\b/,/\bdips?\b|\bdipped\b/,/pressure/,/\bcrash/];
+const count=(t,list)=>list.reduce((n,r)=>n+(r.test(t)?1:0),0);
+const THEMES=[
+  { id:"fed", name:"Fed & interest rates", short:"Fed/rates", weight:0.35,
+    q:'("Federal Reserve" OR "Fed rate" OR "rate hike" OR "rate cut" OR FOMC OR "Treasury yields" OR Powell OR Warsh)',
+    score:t=>{ const b=count(t,[/rate cuts?\b|\bcuts? (interest )?rates|cutting rates/,/dovish/,/\bpause[sd]?\b|holds? rates|on hold/,/easing|\bpivot/,/yields? (fall|falls|fell|drop|drops|slide|slides|ease|eases|retreat)/,/dollar (falls|weakens|slides|drops|slips)/,/inflation (cools|eases|slows)/]);
+                 const s=count(t,[/rate hikes?|hikes? (interest )?rates|raises? rates|rate increase/,/hawkish/,/tighten/,/higher for longer/,/yields? (rise|rises|rose|climb|climbs|jump|jumps|surge|surges|hit|spike)/,/dollar (rises|gains|strengthens|jumps|firms|climbs)/,/inflation (heats|accelerat|hot|jumps|rises)/]);
+                 return Math.max(-1,Math.min(1,(b-s)/1.5)); } },
+  { id:"jobs", name:"US jobs", short:"US jobs", weight:0.25,
+    q:'("nonfarm payrolls" OR "non-farm payrolls" OR "jobs report" OR "jobless claims" OR "US unemployment" OR "US payrolls" OR "US jobs")',
+    score:t=>{ // weak jobs → Fed eases → good for gold; strong jobs → bad for gold
+      const b=count(t,[/(unemployment|jobless)[^.]{0,40}(rise|rises|rose|jump|jumps|climb|climbs|higher|surge|up\b)/,/\b(payrolls?|jobs|job growth|job gains|hiring|employment)\b[^.]{0,40}(miss|misses|weak|fall|falls|fell|drop|declin|slow|cool|disappoint|shrink|contract|unexpectedly fall)/,/layoffs?|job cuts/,/(weak|soft|cooling|slowing|weakening) (labor|labour|job)/]);
+      const s=count(t,[/(unemployment|jobless)[^.]{0,40}(fall|falls|fell|drop|drops|declin|lower|down\b|eases)/,/\b(payrolls?|jobs|job growth|job gains|hiring|employment)\b[^.]{0,40}(beat|beats|surge|jump|strong|robust|blow|top|exceed|rise|rises|rose|gain|gains|accelerat|hot)/,/(strong|robust|hot|tight|resilient|solid) (labor|labour|job|hiring)/]);
+      return Math.max(-1,Math.min(1,(b-s)/1.5)); } },
+  { id:"china", name:"China central-bank (PBoC) buying", short:"China PBoC", weight:0.20,
+    q:'("People\'s Bank of China" OR PBOC OR "China central bank" OR "Chinese central bank") gold',
+    score:t=>{ if(!/gold/.test(t)) return 0;
+      if(/\b(pause[sd]?|halt(s|ed)?|refrain|stop(s|ped)?|suspend|sold|sells?|reduc|no (gold )?purchas|cut(s)? (its )?gold)/.test(t)) return -1;
+      if(/\b(add(s|ed|ing)?|buy(s|ing)?|bought|rais(e|es|ed)|increas|boost|ramp|accelerat|extend|streak|purchas|accumulat|consecutive)/.test(t)) return 1;
+      return 0; } },
+  { id:"gold", name:"General gold headlines", short:"Gold news", weight:0.20,
+    q:'("gold price" OR "gold prices" OR "gold futures" OR "spot gold" OR bullion)',
+    score:t=>Math.max(-1,Math.min(1,(count(t,BULL)-count(t,BEAR))/2)) },
+];
+const NW={cur:null, themes:{}, live:[], weeks:[], rec:{calls:0,hits:0}, comb:{calls:0,hits:0}, volFactor:1, volRatio:null, updated:null, status:"loading", prog:""};
+let gChain=Promise.resolve(), gLast=0;
+function gFetch(url){ // GDELT asks for at most one request every 5 seconds
+  const job=gChain.then(async()=>{ const wait=Math.max(0,gLast+5500-Date.now()); if(wait) await new Promise(r=>setTimeout(r,wait)); gLast=Date.now();
+    const c=new AbortController(); const to=setTimeout(()=>c.abort(),20000);
+    try{ const r=await fetch(url,{signal:c.signal,cache:"no-store"}); const txt=await r.text(); if(!txt.trim()) return {}; return JSON.parse(txt); } finally{ clearTimeout(to); } });
+  gChain=job.catch(()=>{}); return job; }
+const fmtG=t=>new Date(t).toISOString().replace(/[-:T]/g,"").slice(0,14);
+function summarise(arts, th){
+  const seen=new Set(), items=[];
+  for(const a of arts||[]){ const k=(a.title||"").toLowerCase().replace(/[^a-z0-9 ]/g,"").slice(0,70); if(!k||seen.has(k)) continue; seen.add(k); items.push({...a, s:th.score((a.title||"").toLowerCase()), theme:th.id}); }
+  const scored=items.filter(i=>i.s!==0), n=items.length;
+  const mean= th.id==="gold" ? (n?items.reduce((x,i)=>x+i.s,0)/n:0) : (scored.length?scored.reduce((x,i)=>x+i.s,0)/scored.length:0);
+  const sc = th.id==="gold" ? Math.max(-1,Math.min(1,mean*3)) : Math.max(-1,Math.min(1,mean*Math.min(1,scored.length/4))); // themes need ≥4 directional headlines for full strength
+  return {items, n, used:th.id==="gold"?n:scored.length, mean, score:sc, dir:Math.abs(sc)<0.1?0:sign(sc), bull:items.filter(i=>i.s>0).length, bear:items.filter(i=>i.s<0).length};
+}
+function blend(themeSums){ // weighted by theme priority; themes with too little news drop out
+  let num=0, den=0, n=0, bull=0, bear=0;
+  for(const th of THEMES){ const t=themeSums[th.id]; if(!t) continue; n+=t.n; bull+=t.bull; bear+=t.bear;
+    if(t.used>=(th.id==="gold"?5:2)){ num+=th.weight*t.score; den+=th.weight; } }
+  const score=den?num/den:0;
+  return {score, dir:Math.abs(score)<0.08?0:sign(score), n, bull, bear, coverage:den};
+}
+async function loadNewsLive(){
+  const sums={};
+  for(const th of THEMES){
+    try{ const j=await gFetch(gUrl(th.q,"mode=artlist&maxrecords=250&sort=datedesc&timespan=7d")); sums[th.id]=summarise(j.articles, th); NW.status="ok"; }
+    catch(e){ if(NW.themes[th.id]) sums[th.id]=NW.themes[th.id]; }
+    NW.themes={...NW.themes, ...sums}; NW.cur=blend(NW.themes); NW.updated=Date.now();
+    NW.live=[].concat(...Object.values(NW.themes).map(t=>t.items)).filter(a=>a.s!==0||a.theme==="gold").sort((x,y)=>String(y.seendate).localeCompare(String(x.seendate)));
+    renderNews(); recompute(false);
+  }
+  if(!Object.keys(sums).length && !NW.cur) NW.status="error";
+  try{
+    const j=await gFetch(gUrl(THEMES[3].q,"mode=timelinevol&timespan=3months"));
+    const d=(j.timeline&&j.timeline[0]&&j.timeline[0].data||[]).map(x=>+x.value).filter(v=>v>=0);
+    if(d.length>20){ const all=d.reduce((a,b)=>a+b,0)/d.length, rec=d.slice(-3).reduce((a,b)=>a+b,0)/Math.min(3,d.length);
+      NW.volRatio=all?rec/all:1; NW.volFactor = NW.volRatio>1.2 ? Math.min(1.35, Math.sqrt(NW.volRatio)) : 1; }
+  }catch(e){}
+  renderNews(); recompute(false);
+}
+async function loadNewsHistory(){
+  if(!S.bt) return;
+  const cutoff=Date.now()-88*86400000;
+  const steps=S.bt.ens.all.filter(st=>st.t-6*86400000>=cutoff);
+  NW.weeks=[]; const total=steps.length*THEMES.length; let done=0;
+  for(const st of steps){ const end=st.t+86400000, start=end-7*86400000, sums={};
+    for(const th of THEMES){ done++; NW.prog=`Grading news on past weeks ${done}/${total}…`; renderNews();
+      const key=`gd_news3_${th.id}_${fmtG(end)}`; let sm=store.get(key,null);
+      if(!sm){ try{ const j=await gFetch(gUrl(th.q,`mode=artlist&maxrecords=250&sort=datedesc&startdatetime=${fmtG(start)}&enddatetime=${fmtG(end)}`)); const x=summarise(j.articles,th);
+          sm={n:x.n,used:x.used,score:x.score,bull:x.bull,bear:x.bear}; if(x.n) store.set(key,sm); }catch(e){ continue; } }
+      sums[th.id]=sm; }
+    const bl=blend(sums); NW.weeks.push({t:st.t, out:st.out, priceScore:st.score, ...bl});
+    scoreNewsBacktest(); renderBacktest();
+  }
+  NW.prog=""; renderNews(); recompute(false);
+}
+function scoreNewsBacktest(){
+  NW.rec={calls:0,hits:0}; NW.comb={calls:0,hits:0};
+  for(const w of NW.weeks){ if(!w.coverage) continue; const od=sign(w.out);
+    if(w.dir){ NW.rec.calls++; if(w.dir===od) NW.rec.hits++; }
+    const cs=(1-S.newsW)*w.priceScore + S.newsW*w.score; const cd=Math.abs(cs)<0.1?0:sign(cs);
+    if(cd){ NW.comb.calls++; if(cd===od) NW.comb.hits++; } }
+}
+function renderNews(){
+  const hdr=$("newsHdr"); if(!hdr) return;
+  if(NW.status==="error" && !NW.cur){ hdr.textContent="GDELT news feed not reachable from this network. Retrying every 10 min."; $("newsList").innerHTML='<li class="small muted">No live headlines yet. Open the analyst context below.</li>'; return; }
+  if(!NW.cur) return;
+  const n=NW.cur;
+  hdr.textContent = `GDELT · updated ${new Date(NW.updated).toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"})} · refreshes every 10 min${NW.prog?" · "+NW.prog:""}`;
+  const tagOf=v=>v>0.1?'<span class="tag up">▲ Bullish</span>':v<-0.1?'<span class="tag down">▼ Bearish</span>':'<span class="tag flat">● Neutral</span>';
+  const fmtS=v=>(v>=0?"+":"−")+Math.abs(v).toFixed(2);
+  const bar=v=>{ const w=Math.abs(v)*50; return `<div class="meter" style="margin-top:4px;height:6px"><i style="left:${v<0?50-w:50}%;width:${w}%;background:${v<0?"var(--down)":"var(--up)"}"></i><i style="left:50%;width:1px;background:var(--t3)"></i></div>`; };
+  const rows=THEMES.map(th=>{ const t=NW.themes[th.id]; const active=t&&t.used>=(th.id==="gold"?5:2);
+    return `<tr><td><b>${th.name}</b><div class="tiny muted">priority ${Math.round(th.weight*100)}%${t?` · ${t.n} headlines, ${t.bull} bullish / ${t.bear} bearish`:" · loading…"}</div>${t?bar(t.score):""}</td>
+      <td>${t?(active?tagOf(t.score):'<span class="tag flat">● Too little news</span>'):""}</td><td class="n">${t&&active?fmtS(t.score):"—"}</td></tr>`; }).join("");
+  $("newsStats").innerHTML = `<div style="flex:1 1 100%"><div class="small">Combined news signal ${tagOf(n.score)} <span class="sec">score ${fmtS(n.score)} · weighted by priority</span>
+      ${NW.volRatio?`<span class="sec"> · gold-news volume ${NW.volRatio.toFixed(2)}× normal${NW.volFactor>1?" (range widened)":""}</span>`:""}</div>
+      <div class="scroll" style="margin-top:8px"><table><thead><tr><th>Theme</th><th>Signal</th><th class="n">Score</th></tr></thead><tbody>${rows}</tbody></table></div></div>`;
+  const ago=sd=>{ const m=sd&&sd.match(/(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})/); if(!m) return ""; const t=Date.UTC(+m[1],+m[2]-1,+m[3],+m[4],+m[5]); const h=(Date.now()-t)/3600000; return h<1?Math.max(1,Math.round(h*60))+" min ago":h<48?Math.round(h)+" h ago":Math.round(h/24)+" d ago"; };
+  const esc=x=>String(x||"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+  const short=Object.fromEntries(THEMES.map(t=>[t.id,t.short]));
+  // priority headlines first: Fed, jobs and China stories that carry a direction, then the rest
+  const pri={fed:0,jobs:1,china:2,gold:3};
+  const list=NW.live.filter(a=>/^https?:/.test(a.url||"")).sort((x,y)=>{ const dx=ago(x.seendate).includes("d ago"), dy=ago(y.seendate).includes("d ago"); if(dx!==dy) return dx?1:-1; return (pri[x.theme]-pri[y.theme]) || String(y.seendate).localeCompare(String(x.seendate)); }).slice(0,16);
+  $("newsList").innerHTML = list.length ? list.map(a=>{ const tag=a.s>0?'<span class="tag up">▲ Bullish</span>':a.s<0?'<span class="tag down">▼ Bearish</span>':'<span class="tag flat">● Neutral</span>';
+    return `<li>${tag} <span class="tag flat" style="font-weight:500">${short[a.theme]}</span> <span class="tiny muted">${esc(ago(a.seendate))} · ${esc(a.domain)}</span><br><a href="${esc(a.url)}" target="_blank" rel="noopener" style="color:var(--t1);text-decoration:none">${esc(a.title)}</a></li>`; }).join("") : '<li class="small muted">No headlines in the last 7 days.</li>';
+}
+
+// ---------- data loading ----------
+function banner(msg){ const b=$("statusBanner"); if(msg){ b.hidden=false; b.innerHTML=msg; } else b.hidden=true; }
+S.histLog=[];
+async function loadHistory(){
+  S.histLog=[]; let got=null;
+  for(const f of HIST_FEEDS){
+    try{ const a=(await f.load()).filter(x=>x.c>0&&isFinite(x.t));
+      if(a.length>=250){ got={a,name:f.name}; S.histLog.push(`${f.name}: ✓ ${a.length} days`); break; }
+      S.histLog.push(`${f.name}: only ${a.length} days`);
+    }catch(e){ S.histLog.push(`${f.name}: ✗ ${e&&e.name==="AbortError"?"timed out":(e&&e.message)||"blocked"}`); } }
+  if(got){ S.hist=got.a; S.histSrc=`${got.name} (${got.a.length} days)`; S.histOk=true; banner(null); }
+  else if(!S.histOk){ S.hist=FALLBACK.map(([d,c])=>({t:Date.parse(d+"T00:00:00Z"),c})); S.histSrc="built-in snapshot (30 sessions)";
+    banner(`<b>Price history didn’t load</b>, so the forecast and track record are waiting. Retrying every 2 minutes.<br><span class="tiny muted">${S.histLog.join(" · ")}</span><br><span class="tiny">Tip: if every source says “blocked”, try mobile data or another Wi-Fi, or turn off an ad-blocker / VPN for this page.</span>`); }
+  const wk=S.hist.filter(x=>{const d=new Date(x.t).getUTCDay(); return d===0||d===6;}).length/S.hist.length;
+  S.cpw = wk>0.1?7:5;
+}
+function recompute(full){
+  if(full) S.bt=backtest();
+  S.fc=forecastNow();
+  renderForecast(); renderBacktest(); renderLevels(); renderNews();
+}
+function applyLive(p){
+  S.lastPrice=S.live; S.live=p; S.ticks.push(p); if(S.ticks.length>720) S.ticks.shift();
+  if(S.hist.length && S.cpw===7){ const last=S.hist[S.hist.length-1]; const dayStart=Date.UTC(new Date().getUTCFullYear(),new Date().getUTCMonth(),new Date().getUTCDate());
+    if(last.t>=dayStart) last.c=p; else if(Date.now()-last.t>=86400000){ S.hist.push({t:dayStart,c:p}); } }
+}
+let liveBusy=false;
+async function pollLive(){
+  if(S.paused || liveBusy) return; liveBusy=true;
+  try{ await pollLiveInner(); } finally{ liveBusy=false; }
+}
+async function pollLiveInner(){
+  const order=[S.liveIdx, ...LIVE_FEEDS.map((_,i)=>i).filter(i=>i!==S.liveIdx)];
+  for(const i of order){ const f=LIVE_FEEDS[i];
+    try{ const r=f.parse(await getJSON(f.url,3000)); if(!(r.price>0)) throw 0;
+      S.liveIdx=i; S.liveSrc=f.name; if(r.prev) S.prev=r.prev; else if(!S.prev && S.hist.length>1) S.prev=S.hist[S.hist.length-2].c;
+      if(S.live==null || Math.abs(r.price-S.live)>1e-9) S.changedAt=Date.now();
+      applyLive(r.price); S.fails=0; S.checkedAt=Date.now();
+      $("liveDot").className="dot"; renderLiveText();
+      renderKpis(); recompute(false); return; }catch(e){} }
+  S.fails++; $("liveDot").className="dot err";
+  $("liveText").textContent = "Feed unreachable · retrying every 5 s";
+  if(S.fails===3) banner("Live feeds aren’t responding from this browser. This page must be opened directly in a normal browser (Chrome, Edge, Safari), not inside a sandboxed preview, and some networks block exchange APIs. It keeps retrying automatically.");
+}
+async function pollFx(){ for(const f of FX_FEEDS){ try{ const v=f.parse(await getJSON(f.url)); if(v>50&&v<200){ S.fx=v; S.fxSrc=f.name; renderKpis(); renderLevels(); return; } }catch(e){} } }
+
+function renderLiveText(){
+  if(S.paused){ $("liveText").textContent="Paused"; return; }
+  if(!S.checkedAt) return;
+  const sec=Math.max(0,Math.round((Date.now()-S.checkedAt)/1000));
+  const ch=S.changedAt?Math.round((Date.now()-S.changedAt)/1000):null;
+  const chTxt=ch==null?"":ch<60?` · price moved ${ch}s ago`:` · price unchanged ${Math.round(ch/60)} min`;
+  $("liveText").textContent=`Live · checked ${sec}s ago${chTxt} · ${S.liveSrc.split(" ·")[0]}`;
+}
+setInterval(()=>{ if(S.fails<1) renderLiveText(); }, 1000);
+// ---------- UI ----------
+(function(){ const apply=t=>{ if(t==="dark") document.documentElement.setAttribute("data-theme","dark"); else document.documentElement.removeAttribute("data-theme"); $("themeBtn").textContent=t==="dark"?"Light mode":"Dark mode"; };
+  let t=store.get("gd_theme2","light"); apply(t);
+  $("themeBtn").addEventListener("click",()=>{ t=t==="dark"?"light":"dark"; store.set("gd_theme2",t); apply(t); }); })();
+// highlight the section in view in the top menu
+(function(){ const links=[...document.querySelectorAll(".topnav a")]; const map=new Map(links.map(a=>[a.getAttribute("href").slice(1),a]));
+  if(!("IntersectionObserver" in window)) return;
+  const io=new IntersectionObserver(es=>{ es.forEach(e=>{ if(e.isIntersecting){ links.forEach(l=>l.classList.remove("on")); const l=map.get(e.target.id); if(l){ l.classList.add("on"); l.scrollIntoView({block:"nearest",inline:"nearest"}); } } }); },{rootMargin:"-40% 0px -55% 0px"});
+  map.forEach((_,id)=>{ const el=document.getElementById(id); if(el) io.observe(el); }); })();
+$("pauseBtn").addEventListener("click",()=>{ S.paused=!S.paused; $("pauseBtn").setAttribute("aria-pressed",String(S.paused)); $("pauseBtn").textContent=S.paused?"Resume":"Pause"; if(S.paused){ $("liveText").textContent="Paused"; } else pollLive(); });
+$("calForm").addEventListener("submit",e=>{ e.preventDefault(); const v=+String($("calInput").value).replace(/[^0-9.]/g,"");
+  if(!(v>10000) || !S.live){ $("calMsg").textContent="Enter the MCX price in ₹ per 10 g (e.g. 131420) once a live price has loaded."; return; }
+  S.factor = v / (S.live/OZ*10*S.fx); store.set("gd_factor",S.factor); $("calMsg").textContent=`Calibrated: factor ×${S.factor.toFixed(4)} (saved in this browser).`; renderKpis(); renderLevels(); recompute(false); });
+$("nw").addEventListener("input",()=>{ S.newsW=+$("nw").value/100; $("nwVal").textContent=$("nw").value+"%"; store.set("gd_newsW",S.newsW); scoreNewsBacktest(); recompute(false); });
+
+// ---------- boot ----------
+(async function boot(){
+  renderLevels();
+  await Promise.all([loadHistory(), pollFx()]);
+  if(!S.live) S.live=S.hist[S.hist.length-1].c;
+  recompute(true);
+  await pollLive();
+  setInterval(pollLive, POLL_MS);
+  setInterval(pollFx, FX_MS);
+  $("nw").value=Math.round(S.newsW*100); $("nwVal").textContent=Math.round(S.newsW*100)+"%";
+  pollJewellers(); setInterval(pollJewellers, 60*1000);
+  pollDeals(); setInterval(pollDeals, 5*60*1000); setInterval(renderDeals, 15*1000);
+  loadNewsLive().then(loadNewsHistory);
+  setInterval(loadNewsLive, 10*60*1000);
+  setInterval(async()=>{ await loadHistory(); recompute(true); }, HIST_MS);
+  setInterval(async()=>{ if(S.histOk) return; await loadHistory(); if(S.histOk){ recompute(true); loadNewsHistory(); } }, 2*60*1000);
+})();
+})();
+</script>
+</body>
+</html>
